@@ -1,0 +1,142 @@
+"""Chat (RAG) endpoints: send a message, retrieve history."""
+
+import logging
+import uuid
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.models.chat_message import ChatMessage
+from app.models.contract import Contract
+from app.schemas.chat import ChatRequest, ChatMessageResponse, ChatResponse, SourceChunk
+from app.services.rag import ask
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# POST /{contract_id}/chat
+# ---------------------------------------------------------------------------
+
+@router.post("/{contract_id}/chat")
+async def chat(
+    contract_id: uuid.UUID,
+    body: ChatRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Answer a question about a contract using RAG.
+
+    Persists both the user message and the assistant response to chat_messages.
+    """
+    contract = await _get_ready_contract(contract_id, db)
+
+    # Load last 20 messages for context (we pass the last 10 to the chain inside rag.py)
+    history_result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.contract_id == contract_id)
+        .order_by(ChatMessage.created_at.asc())
+        .limit(20)
+    )
+    history_messages = history_result.scalars().all()
+    chat_history = [{"role": m.role, "content": m.content} for m in history_messages]
+
+    # Persist the user message first
+    user_msg = ChatMessage(
+        contract_id=contract_id,
+        role="user",
+        content=body.question,
+        source_chunks=None,
+    )
+    db.add(user_msg)
+    await db.flush()
+
+    # Run RAG pipeline
+    try:
+        result = await ask(
+            question=body.question,
+            namespace=contract.pinecone_namespace,
+            chat_history=chat_history,
+        )
+    except Exception as e:
+        logger.exception("RAG pipeline failed for contract %s: %s", contract_id, e)
+        raise HTTPException(status_code=502, detail=f"RAG pipeline error: {e}") from e
+
+    answer = result["answer"]
+    sources = result["sources"]
+
+    # Persist the assistant response
+    assistant_msg = ChatMessage(
+        contract_id=contract_id,
+        role="assistant",
+        content=answer,
+        source_chunks=sources or None,
+    )
+    db.add(assistant_msg)
+    await db.flush()
+
+    logger.info(
+        "Chat answered for contract %s: %d source chunks",
+        contract_id, len(sources),
+    )
+
+    return {
+        "success": True,
+        "data": ChatResponse(
+            answer=answer,
+            sources=[SourceChunk(**s) for s in sources],
+            message_id=assistant_msg.id,
+        ).model_dump(mode="json"),
+    }
+
+
+# ---------------------------------------------------------------------------
+# GET /{contract_id}/chat/history
+# ---------------------------------------------------------------------------
+
+@router.get("/{contract_id}/chat/history")
+async def get_chat_history(
+    contract_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Return all chat messages for a contract in chronological order."""
+    await _get_ready_contract(contract_id, db)
+
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.contract_id == contract_id)
+        .order_by(ChatMessage.created_at.asc())
+    )
+    messages = result.scalars().all()
+
+    return {
+        "success": True,
+        "data": {
+            "messages": [
+                ChatMessageResponse.model_validate(m).model_dump(mode="json")
+                for m in messages
+            ]
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Shared helper
+# ---------------------------------------------------------------------------
+
+async def _get_ready_contract(contract_id: uuid.UUID, db: AsyncSession) -> Contract:
+    """Fetch a contract and verify it's in 'ready' state."""
+    result = await db.execute(select(Contract).where(Contract.id == contract_id))
+    contract = result.scalar_one_or_none()
+    if contract is None:
+        raise HTTPException(status_code=404, detail="Contract not found")
+    if contract.status != "ready":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Contract is not ready for chat (status: {contract.status})",
+        )
+    return contract
