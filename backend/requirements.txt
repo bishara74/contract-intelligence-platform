@@ -12,10 +12,10 @@ pydantic>=2.9.2
 pydantic-settings>=2.5.2
 
 # LangChain
-langchain>=0.3.7
-langchain-openai>=0.3.11
+langchain>=0.3.7,<1.0.0
+langchain-openai>=0.3.11,<2.0.0
 langchain-pinecone>=0.2.13
-langchain-community>=0.3.7
+langchain-community>=0.3.7,<1.0.0
 
 # OpenAI
 openai>=1.54.4
