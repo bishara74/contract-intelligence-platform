@@ -30,11 +30,11 @@ export default function DropZone({ onFileSelected, disabled, error }: DropZonePr
   });
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-full overflow-hidden">
       <div
         {...getRootProps()}
         className={cn(
-          "relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-10 text-center transition-colors cursor-pointer",
+          "relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors cursor-pointer overflow-hidden",
           isDragActive && "border-primary bg-primary/5",
           isDragReject && "border-destructive bg-destructive/5",
           !isDragActive && !isDragReject && "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50",
