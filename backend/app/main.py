@@ -29,6 +29,7 @@ app = FastAPI(
     description="AI-powered contract analysis with RAG, clause extraction, and risk detection.",
     version="1.0.0",
     lifespan=lifespan,
+     redirect_slashes=False,
 )
 
 app.add_middleware(
