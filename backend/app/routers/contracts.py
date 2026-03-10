@@ -161,6 +161,7 @@ async def _process_contract(contract_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 @router.get("")
+@router.get("/")
 async def list_contracts(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """List all contracts ordered by creation date descending."""
     result = await db.execute(
