@@ -174,7 +174,7 @@ function UploadModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Upload Contract</DialogTitle>
           <DialogDescription>
