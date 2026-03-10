@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     r2_bucket_name: str = "contract-intelligence"
 
     # CORS
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = "http://localhost:5173,https://contract-intelligence-platform-3zjo.vercel.app"
 
     @property
     def cors_origins_list(self) -> list[str]:
