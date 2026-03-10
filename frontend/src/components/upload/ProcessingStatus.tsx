@@ -57,16 +57,6 @@ export default function ProcessingStatus({ status, filename, errorMessage }: Pro
 
       <div className="space-y-1.5">
         {STEPS.map((step, i) => {
-          const isActive = status === "processing" && i > 0 && i < 3;
-          const isDone =
-            status === "ready" ||
-            (status === "processing" && i === 0) ||
-            (status === "uploading" && i === 0 && false);
-
-          const stepDone =
-            (status === "processing" && i === 0) ||
-            status === "ready";
-
           return (
             <div key={step.label} className="flex items-center gap-2 text-xs">
               {i === 0 && (status === "uploading" || status === "processing" || status === "ready") ? (

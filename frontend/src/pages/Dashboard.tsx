@@ -24,7 +24,7 @@ import {
 import DropZone from "@/components/upload/DropZone";
 import ProcessingStatus from "@/components/upload/ProcessingStatus";
 import { useContract, useContracts, useDeleteContract } from "@/hooks/useContract";
-import { cn, formatBytes, formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type { Contract, ContractStatus } from "@/types";
 
 // ── Status badge ──────────────────────────────────────────────────────────────

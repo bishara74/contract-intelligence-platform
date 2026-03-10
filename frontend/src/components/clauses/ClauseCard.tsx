@@ -1,6 +1,5 @@
 import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Clause, ClauseType } from "@/types";
 

@@ -27,7 +27,7 @@ import {
   useRisks,
 } from "@/hooks/useContract";
 import { useChatStore } from "@/store/chatStore";
-import { formatBytes, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 // ── Sidebar ────────────────────────────────────────────────────────────────────
 
