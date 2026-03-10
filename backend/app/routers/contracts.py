@@ -82,7 +82,7 @@ async def confirm_upload(
         }
 
     contract.status = "processing"
-    await db.flush()
+    await db.commit()
 
     background_tasks.add_task(_process_contract, str(contract_id))
 
