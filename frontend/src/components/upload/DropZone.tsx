@@ -45,13 +45,15 @@ export default function DropZone({ onFileSelected, disabled, error }: DropZonePr
         <input {...getInputProps()} />
 
         {selectedFile ? (
-          <>
+          <div className="max-w-full w-full overflow-hidden flex flex-col items-center">
             <FileText className="h-10 w-10 text-green-600 mb-3" />
-            <p className="font-medium text-sm">{selectedFile.name}</p>
+            <p className="font-medium text-sm truncate max-w-full px-2" title={selectedFile.name}>
+              {selectedFile.name}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
               {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · Click or drag to replace
             </p>
-          </>
+          </div>
         ) : (
           <>
             <Upload className="h-10 w-10 text-muted-foreground mb-3" />

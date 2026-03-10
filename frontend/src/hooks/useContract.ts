@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useRef, useState } from "react";
 import * as api from "@/api/client";
 import type { ContractStatus } from "@/types";
 
@@ -65,19 +66,50 @@ export function useClauses(contractId: string) {
   return useQuery({
     queryKey: ["clauses", contractId],
     queryFn: () => api.getClauses(contractId),
-    // Keep polling until clauses appear (extraction is a background task)
-    refetchInterval: (query) => (query.state.data?.total ?? 0) === 0 ? 3000 : false,
   });
 }
 
+/**
+ * Triggers clause extraction and tracks "extracting" state until clauses appear.
+ * `isExtracting` stays true from the moment the user clicks until results arrive,
+ * so the button remains disabled/loading throughout the background task.
+ */
 export function useExtractClauses(contractId: string) {
   const queryClient = useQueryClient();
-  return useMutation({
+  const [waitingForResults, setWaitingForResults] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  const mutation = useMutation({
     mutationFn: () => api.extractClauses(contractId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["clauses", contractId] });
+      setWaitingForResults(true);
+      // Poll for clauses every 3s until they appear
+      stopPolling();
+      pollRef.current = setInterval(async () => {
+        const data = await queryClient.fetchQuery({
+          queryKey: ["clauses", contractId],
+          queryFn: () => api.getClauses(contractId),
+        });
+        if (data && data.total > 0) {
+          setWaitingForResults(false);
+          stopPolling();
+          queryClient.invalidateQueries({ queryKey: ["clauses", contractId] });
+        }
+      }, 3000);
     },
   });
+
+  return {
+    ...mutation,
+    isExtracting: mutation.isPending || waitingForResults,
+  };
 }
 
 // ─── Risks ────────────────────────────────────────────────────────────────────
@@ -86,17 +118,45 @@ export function useRisks(contractId: string) {
   return useQuery({
     queryKey: ["risks", contractId],
     queryFn: () => api.getRisks(contractId),
-    // Keep polling until risks appear (analysis is a background task)
-    refetchInterval: (query) => (query.state.data?.total ?? 0) === 0 ? 3000 : false,
   });
 }
 
+/**
+ * Triggers risk analysis and tracks "analyzing" state until risks appear.
+ */
 export function useAnalyzeRisks(contractId: string) {
   const queryClient = useQueryClient();
-  return useMutation({
+  const [waitingForResults, setWaitingForResults] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  const mutation = useMutation({
     mutationFn: () => api.analyzeRisks(contractId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["risks", contractId] });
+      setWaitingForResults(true);
+      stopPolling();
+      pollRef.current = setInterval(async () => {
+        const data = await queryClient.fetchQuery({
+          queryKey: ["risks", contractId],
+          queryFn: () => api.getRisks(contractId),
+        });
+        if (data && data.total > 0) {
+          setWaitingForResults(false);
+          stopPolling();
+          queryClient.invalidateQueries({ queryKey: ["risks", contractId] });
+        }
+      }, 3000);
     },
   });
+
+  return {
+    ...mutation,
+    isAnalyzing: mutation.isPending || waitingForResults,
+  };
 }

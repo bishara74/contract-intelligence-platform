@@ -35,8 +35,8 @@ function ContractSidebar({ contractId }: { contractId: string }) {
   const { data: contract } = useContract(contractId);
   const { data: clauses } = useClauses(contractId);
   const { data: risks } = useRisks(contractId);
-  const { mutate: extractClauses, isPending: extracting } = useExtractClauses(contractId);
-  const { mutate: analyzeRisks, isPending: analyzing } = useAnalyzeRisks(contractId);
+  const { mutate: extractClauses, isExtracting: extracting } = useExtractClauses(contractId);
+  const { mutate: analyzeRisks, isAnalyzing: analyzing } = useAnalyzeRisks(contractId);
 
   if (!contract) return null;
 
@@ -134,6 +134,9 @@ function ContractSidebar({ contractId }: { contractId: string }) {
             )}
             {analyzing ? "Analyzing…" : "Analyze Risks"}
           </Button>
+          {clauseCount === 0 && !analyzing && (
+            <p className="text-xs text-muted-foreground pl-1">Extract clauses first</p>
+          )}
           {riskCount > 0 && (
             <div className="flex items-center gap-1.5 pl-1">
               <p className="text-xs text-muted-foreground">{riskCount} risks found</p>
@@ -263,9 +266,21 @@ export default function ContractDetail() {
 
 function ClausesTab({ contractId }: { contractId: string }) {
   const { data, isLoading } = useClauses(contractId);
-  const { mutate: extract, isPending } = useExtractClauses(contractId);
+  const { mutate: extract, isExtracting } = useExtractClauses(contractId);
 
   if (isLoading) return <LoadingSpinner />;
+
+  if (isExtracting) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div>
+          <p className="font-medium">Extracting clauses...</p>
+          <p className="text-sm text-muted-foreground mt-1">This usually takes 30-60 seconds.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!data || data.total === 0) {
     return (
@@ -274,8 +289,8 @@ function ClausesTab({ contractId }: { contractId: string }) {
         title="No clauses extracted yet"
         description="Extract clauses to see termination, liability, payment, and other key provisions."
         action={
-          <Button size="sm" onClick={() => extract()} disabled={isPending}>
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}
+          <Button size="sm" onClick={() => extract()} disabled={isExtracting}>
+            <BookOpen className="h-4 w-4" />
             Extract Clauses
           </Button>
         }
@@ -293,27 +308,50 @@ function ClausesTab({ contractId }: { contractId: string }) {
 
 function RisksTab({ contractId }: { contractId: string }) {
   const { data, isLoading } = useRisks(contractId);
-  const { mutate: analyze, isPending } = useAnalyzeRisks(contractId);
+  const { mutate: analyze, isAnalyzing } = useAnalyzeRisks(contractId);
   const { data: clauses } = useClauses(contractId);
+  const hasClauses = (clauses?.total ?? 0) > 0;
 
   if (isLoading) return <LoadingSpinner />;
+
+  if (isAnalyzing) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div>
+          <p className="font-medium">Analyzing risks...</p>
+          <p className="text-sm text-muted-foreground mt-1">This usually takes 30-60 seconds.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!data || data.total === 0) {
     return (
       <EmptyTabState
         icon={<ShieldAlert className="h-8 w-8 text-muted-foreground/40" />}
         title="No risks analyzed yet"
-        description="Analyze risks to flag auto-renewal traps, uncapped liability, missing clauses, and more."
+        description={
+          hasClauses
+            ? "Analyze risks to flag auto-renewal traps, uncapped liability, missing clauses, and more."
+            : "Extract clauses first before analyzing risks."
+        }
         action={
-          <Button
-            size="sm"
-            onClick={() => analyze()}
-            disabled={isPending || !clauses?.total}
-            title={!clauses?.total ? "Extract clauses first" : undefined}
-          >
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldAlert className="h-4 w-4" />}
-            Analyze Risks
-          </Button>
+          <>
+            <Button
+              size="sm"
+              onClick={() => analyze()}
+              disabled={isAnalyzing || !hasClauses}
+            >
+              <ShieldAlert className="h-4 w-4" />
+              Analyze Risks
+            </Button>
+            {!hasClauses && (
+              <p className="text-xs text-muted-foreground">
+                Extract clauses first using the sidebar or Clauses tab.
+              </p>
+            )}
+          </>
         }
       />
     );
