@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     r2_secret_access_key: str = ""
     r2_bucket_name: str = "contract-intelligence"
 
+    # Redis / Celery
+    redis_url: str = "redis://redis:6379/0"
+
     # CORS
     cors_origins: str = "http://localhost:5173,https://contract-intelligence-platform-3zjo.vercel.app"
 

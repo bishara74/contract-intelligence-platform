@@ -29,6 +29,13 @@ PyMuPDF>=1.24.12
 # File storage (Cloudflare R2 via S3)
 boto3>=1.35.54
 
+# Task queue
+celery[redis]>=5.3.0
+redis>=5.0.0
+
+# Sync PostgreSQL driver (for Celery workers)
+psycopg2-binary>=2.9.0
+
 # Utilities
 python-multipart>=0.0.12
 httpx>=0.28.0

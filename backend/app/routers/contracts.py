@@ -4,17 +4,16 @@ import logging
 import uuid
 from typing import Any
 
-import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import AsyncSessionLocal, get_db
+from app.database import get_db
 from app.models.contract import Contract
 from app.schemas.contract import ContractResponse, UploadUrlRequest, UploadUrlResponse
 from app.services import storage
-from app.services.pdf_parser import parse_pdf
-from app.services.vector_store import delete_namespace, upsert_chunks
+from app.services.vector_store import delete_namespace
+from app.tasks.contract_tasks import process_contract_task
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +68,6 @@ async def get_upload_url(
 @router.post("/{contract_id}/confirm-upload")
 async def confirm_upload(
     contract_id: uuid.UUID,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Mark a contract as uploaded and kick off the processing pipeline."""
@@ -84,7 +82,7 @@ async def confirm_upload(
     contract.status = "processing"
     await db.commit()
 
-    background_tasks.add_task(_process_contract, str(contract_id))
+    process_contract_task.delay(str(contract_id))
 
     logger.info("Confirmed upload for contract %s — processing started", contract_id)
 
@@ -92,68 +90,6 @@ async def confirm_upload(
         "success": True,
         "data": ContractResponse.model_validate(contract).model_dump(mode="json"),
     }
-
-
-async def _process_contract(contract_id: str) -> None:
-    """Background processing pipeline (grows with each step).
-
-    Step 4: download PDF from R2, parse + chunk with PyMuPDF/LangChain, update page/chunk counts.
-    Steps 5-8: embed → RAG → clauses → risks.
-    """
-    async with AsyncSessionLocal() as db:
-        try:
-            result = await db.execute(select(Contract).where(Contract.id == uuid.UUID(contract_id)))
-            contract = result.scalar_one_or_none()
-            if not contract:
-                logger.error("Contract %s not found during processing", contract_id)
-                return
-
-            # ── Step 4: Download PDF bytes from R2 ───────────────────────────
-            object_key = storage.object_key_for_contract(contract_id)
-            download_url = storage.generate_download_url(object_key, expires_in=300)
-
-            async with httpx.AsyncClient(timeout=60) as client:
-                response = await client.get(download_url)
-                response.raise_for_status()
-                pdf_bytes = response.content
-
-            # ── Step 4: Parse + chunk ─────────────────────────────────────────
-            pages, chunks = parse_pdf(pdf_bytes)
-
-            contract.page_count = len(pages)
-            contract.chunk_count = len(chunks)
-            await db.flush()
-
-            # ── Step 5: Embed + upsert into Pinecone ─────────────────────────
-            await upsert_chunks(
-                chunks=chunks,
-                contract_id=str(contract_id),
-                filename=contract.filename,
-                namespace=contract.pinecone_namespace,
-            )
-
-            # Steps 6–8 will add RAG, clause extraction, risk analysis
-            contract.status = "ready"
-            await db.commit()
-
-            logger.info(
-                "Contract %s processed: %d pages, %d chunks",
-                contract_id, len(pages), len(chunks),
-            )
-
-        except Exception as exc:
-            logger.exception("Processing failed for contract %s: %s", contract_id, exc)
-            try:
-                result = await db.execute(
-                    select(Contract).where(Contract.id == uuid.UUID(contract_id))
-                )
-                contract = result.scalar_one_or_none()
-                if contract:
-                    contract.status = "error"
-                    contract.error_message = str(exc)
-                    await db.commit()
-            except Exception:
-                pass
 
 
 # ---------------------------------------------------------------------------
@@ -211,7 +147,7 @@ async def delete_contract(
         logger.warning("Could not delete R2 object for contract %s: %s", contract_id, e)
 
     try:
-        await _delete_pinecone_namespace(contract.pinecone_namespace)
+        delete_namespace(contract.pinecone_namespace)
     except Exception as e:
         logger.warning("Could not delete Pinecone namespace for contract %s: %s", contract_id, e)
 
@@ -219,11 +155,6 @@ async def delete_contract(
     logger.info("Deleted contract %s", contract_id)
 
     return {"success": True, "data": {"deleted": True}}
-
-
-async def _delete_pinecone_namespace(namespace: str) -> None:
-    """Delete all vectors for a contract from Pinecone."""
-    delete_namespace(namespace)
 
 
 # ---------------------------------------------------------------------------

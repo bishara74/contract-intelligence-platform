@@ -1,5 +1,6 @@
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import settings
 
@@ -14,6 +15,15 @@ AsyncSessionLocal = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
+
+def _get_sync_database_url() -> str:
+    """Convert the async database URL to a sync one for Celery workers."""
+    return settings.database_url.replace("postgresql+asyncpg://", "postgresql://")
+
+
+sync_engine = create_engine(_get_sync_database_url(), pool_pre_ping=True)
+SyncSessionLocal = sessionmaker(bind=sync_engine)
 
 
 class Base(DeclarativeBase):
