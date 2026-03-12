@@ -5,7 +5,7 @@ output "api_url" {
 
 output "database_url" {
   description = "PostgreSQL connection string"
-  value       = render_postgres.db.connection_string
+  value       = render_postgres.db.connection_info.internal_connection_string
   sensitive   = true
 }
 
