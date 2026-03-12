@@ -1,4 +1,8 @@
-"""Celery tasks for contract processing, clause extraction, and risk analysis."""
+"""Celery tasks for contract processing, clause extraction, and risk analysis.
+
+Each task has a corresponding `_sync` function that contains the actual logic
+and can be called directly from FastAPI BackgroundTasks when Celery is not available.
+"""
 
 import logging
 import uuid
@@ -16,10 +20,13 @@ from app.services.pdf_parser import parse_pdf
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
-def process_contract_task(self, contract_id: str) -> None:
+# ---------------------------------------------------------------------------
+# Standalone sync functions (used by both Celery tasks and BackgroundTasks)
+# ---------------------------------------------------------------------------
+
+def process_contract_sync(contract_id: str) -> None:
     """Download PDF from R2, parse + chunk, embed into Pinecone, mark ready."""
-    logger.info("Starting process_contract_task for %s", contract_id)
+    logger.info("Starting process_contract_sync for %s", contract_id)
     session = SyncSessionLocal()
     try:
         contract = session.query(Contract).filter(
@@ -76,15 +83,14 @@ def process_contract_task(self, contract_id: str) -> None:
                 session.commit()
         except Exception:
             session.rollback()
-        raise self.retry(exc=exc)
+        raise
     finally:
         session.close()
 
 
-@celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
-def extract_clauses_task(self, contract_id: str) -> None:
+def extract_clauses_sync(contract_id: str) -> None:
     """Download PDF, parse chunks, extract clauses via LLM, save to DB."""
-    logger.info("Starting extract_clauses_task for %s", contract_id)
+    logger.info("Starting extract_clauses_sync for %s", contract_id)
     session = SyncSessionLocal()
     try:
         contract = session.query(Contract).filter(
@@ -146,15 +152,14 @@ def extract_clauses_task(self, contract_id: str) -> None:
     except Exception as exc:
         logger.exception("Clause extraction failed for contract %s: %s", contract_id, exc)
         session.rollback()
-        raise self.retry(exc=exc)
+        raise
     finally:
         session.close()
 
 
-@celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
-def analyze_risks_task(self, contract_id: str) -> None:
+def analyze_risks_sync(contract_id: str) -> None:
     """Load clauses, run LLM risk analysis, save results to DB."""
-    logger.info("Starting analyze_risks_task for %s", contract_id)
+    logger.info("Starting analyze_risks_sync for %s", contract_id)
     session = SyncSessionLocal()
     try:
         # Load all clauses
@@ -216,9 +221,40 @@ def analyze_risks_task(self, contract_id: str) -> None:
     except Exception as exc:
         logger.exception("Risk analysis failed for contract %s: %s", contract_id, exc)
         session.rollback()
-        raise self.retry(exc=exc)
+        raise
     finally:
         session.close()
+
+
+# ---------------------------------------------------------------------------
+# Celery task wrappers (delegate to sync functions + add retry)
+# ---------------------------------------------------------------------------
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
+def process_contract_task(self, contract_id: str) -> None:
+    """Celery wrapper for process_contract_sync with retry logic."""
+    try:
+        process_contract_sync(contract_id)
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
+def extract_clauses_task(self, contract_id: str) -> None:
+    """Celery wrapper for extract_clauses_sync with retry logic."""
+    try:
+        extract_clauses_sync(contract_id)
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
+def analyze_risks_task(self, contract_id: str) -> None:
+    """Celery wrapper for analyze_risks_sync with retry logic."""
+    try:
+        analyze_risks_sync(contract_id)
+    except Exception as exc:
+        raise self.retry(exc=exc)
 
 
 # ---------------------------------------------------------------------------

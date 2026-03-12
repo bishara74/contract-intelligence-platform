@@ -4,10 +4,11 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.contract import Contract
@@ -15,7 +16,6 @@ from app.models.user import User
 from app.schemas.contract import ContractResponse, UploadUrlRequest, UploadUrlResponse
 from app.services import storage
 from app.services.vector_store import delete_namespace
-from app.tasks.contract_tasks import process_contract_task
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,7 @@ async def get_upload_url(
 @router.post("/{contract_id}/confirm-upload")
 async def confirm_upload(
     contract_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
@@ -87,7 +88,12 @@ async def confirm_upload(
     contract.status = "processing"
     await db.commit()
 
-    process_contract_task.delay(str(contract_id))
+    if settings.use_celery:
+        from app.tasks.contract_tasks import process_contract_task
+        process_contract_task.delay(str(contract_id))
+    else:
+        from app.tasks.contract_tasks import process_contract_sync
+        background_tasks.add_task(process_contract_sync, str(contract_id))
 
     logger.info("Confirmed upload for contract %s — processing started", contract_id)
 

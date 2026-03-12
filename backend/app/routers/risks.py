@@ -5,10 +5,11 @@ import uuid
 from collections import defaultdict
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.clause import Clause
@@ -17,7 +18,6 @@ from app.models.user import User
 from app.models.risk import Risk
 from app.schemas.risk import RiskResponse
 from app.services.risk_analyzer import SEVERITY_LEVELS
-from app.tasks.contract_tasks import analyze_risks_task
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +31,11 @@ router = APIRouter()
 @router.post("/{contract_id}/analyze-risks")
 async def trigger_analyze_risks(
     contract_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Trigger risk analysis as a Celery task.
+    """Trigger risk analysis as a background task.
 
     Requires clauses to be extracted first (GET /clauses must return > 0 results).
     """
@@ -50,7 +51,12 @@ async def trigger_analyze_risks(
             detail="No clauses found. Run extract-clauses before analyze-risks.",
         )
 
-    analyze_risks_task.delay(str(contract_id))
+    if settings.use_celery:
+        from app.tasks.contract_tasks import analyze_risks_task
+        analyze_risks_task.delay(str(contract_id))
+    else:
+        from app.tasks.contract_tasks import analyze_risks_sync
+        background_tasks.add_task(analyze_risks_sync, str(contract_id))
 
     logger.info("Risk analysis triggered for contract %s", contract_id)
     return {"success": True, "data": {"status": "processing", "contract_id": str(contract_id)}}

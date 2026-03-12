@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     # Redis / Celery
     redis_url: str = "redis://redis:6379/0"
+    use_celery: bool = False
 
     # Clerk
     clerk_secret_key: str = ""

@@ -5,17 +5,17 @@ import uuid
 from collections import defaultdict
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.clause import Clause
 from app.models.contract import Contract
 from app.models.user import User
 from app.schemas.clause import ClauseResponse
-from app.tasks.contract_tasks import extract_clauses_task
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +29,19 @@ router = APIRouter()
 @router.post("/{contract_id}/extract-clauses")
 async def trigger_extract_clauses(
     contract_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Trigger clause extraction as a Celery task."""
+    """Trigger clause extraction as a background task."""
     await _get_ready_contract(contract_id, current_user, db)
 
-    extract_clauses_task.delay(str(contract_id))
+    if settings.use_celery:
+        from app.tasks.contract_tasks import extract_clauses_task
+        extract_clauses_task.delay(str(contract_id))
+    else:
+        from app.tasks.contract_tasks import extract_clauses_sync
+        background_tasks.add_task(extract_clauses_sync, str(contract_id))
 
     logger.info("Clause extraction triggered for contract %s", contract_id)
     return {"success": True, "data": {"status": "processing", "contract_id": str(contract_id)}}
