@@ -219,6 +219,21 @@ All responses follow a consistent envelope:
 
 ---
 
+## Infrastructure (Terraform)
+
+All cloud infrastructure is defined as code in the `infrastructure/` directory using Terraform:
+
+| Resource | Provider | Purpose |
+|----------|----------|---------|
+| Web Service | Render | FastAPI backend (Docker) |
+| PostgreSQL | Render | Contract and user metadata |
+| R2 Bucket | Cloudflare | PDF file storage |
+| Vector Index | Pinecone | Semantic search embeddings |
+
+See [`infrastructure/README.md`](infrastructure/README.md) for setup instructions.
+
+---
+
 ## Cloud Deployment
 
 ### Frontend → Vercel

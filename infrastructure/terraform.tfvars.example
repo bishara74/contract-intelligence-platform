@@ -1,0 +1,24 @@
+# Render
+render_api_key = "rnd_..."
+
+# Cloudflare
+cloudflare_api_token  = "..."
+cloudflare_account_id = "..."
+r2_access_key_id      = "..."
+r2_secret_access_key  = "..."
+
+# Pinecone
+pinecone_api_key = "pcsk_..."
+
+# OpenAI
+openai_api_key = "sk-..."
+
+# Clerk
+clerk_secret_key     = "sk_test_..."
+clerk_webhook_secret = "whsec_..."
+
+# App
+app_name        = "contract-intelligence-platform"
+environment     = "prod"
+frontend_url    = "https://your-app.vercel.app"
+github_repo_url = "https://github.com/your-username/your-repo"
