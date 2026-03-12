@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.routers import chat, clauses, contracts, health, risks
+from app.routers import chat, clauses, contracts, health, risks, webhooks
 
 logger = logging.getLogger(__name__)
 
@@ -63,3 +63,4 @@ app.include_router(contracts.router, prefix="/api/v1/contracts", tags=["contract
 app.include_router(chat.router, prefix="/api/v1/contracts", tags=["chat"])
 app.include_router(clauses.router, prefix="/api/v1/contracts", tags=["clauses"])
 app.include_router(risks.router, prefix="/api/v1/contracts", tags=["risks"])
+app.include_router(webhooks.router, prefix="/api/v1/webhooks", tags=["webhooks"])

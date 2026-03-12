@@ -15,6 +15,29 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// ─── Auth token injection ────────────────────────────────────────────────────
+
+type TokenGetter = () => Promise<string | null>;
+let getToken: TokenGetter | null = null;
+
+export function setTokenGetter(getter: TokenGetter) {
+  getToken = getter;
+}
+
+api.interceptors.request.use(async (config) => {
+  if (getToken) {
+    try {
+      const token = await getToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (e) {
+      console.error("Failed to get auth token:", e);
+    }
+  }
+  return config;
+});
+
 // Unwrap the { success, data } envelope
 api.interceptors.response.use((res) => {
   if (res.data && typeof res.data === "object" && "success" in res.data) {

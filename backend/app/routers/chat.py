@@ -9,8 +9,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies.auth import get_current_user
 from app.models.chat_message import ChatMessage
 from app.models.contract import Contract
+from app.models.user import User
 from app.schemas.chat import ChatRequest, ChatMessageResponse, ChatResponse, SourceChunk
 from app.services.rag import ask
 
@@ -28,12 +30,13 @@ async def chat(
     contract_id: uuid.UUID,
     body: ChatRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Answer a question about a contract using RAG.
 
     Persists both the user message and the assistant response to chat_messages.
     """
-    contract = await _get_ready_contract(contract_id, db)
+    contract = await _get_ready_contract(contract_id, current_user, db)
 
     # Load last 20 messages for context (we pass the last 10 to the chain inside rag.py)
     history_result = await db.execute(
@@ -102,9 +105,10 @@ async def chat(
 async def get_chat_history(
     contract_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Return all chat messages for a contract in chronological order."""
-    await _get_ready_contract(contract_id, db)
+    await _get_ready_contract(contract_id, current_user, db)
 
     result = await db.execute(
         select(ChatMessage)
@@ -128,12 +132,16 @@ async def get_chat_history(
 # Shared helper
 # ---------------------------------------------------------------------------
 
-async def _get_ready_contract(contract_id: uuid.UUID, db: AsyncSession) -> Contract:
-    """Fetch a contract and verify it's in 'ready' state."""
+async def _get_ready_contract(
+    contract_id: uuid.UUID, current_user: User, db: AsyncSession
+) -> Contract:
+    """Fetch a contract, verify ownership, and check it's in 'ready' state."""
     result = await db.execute(select(Contract).where(Contract.id == contract_id))
     contract = result.scalar_one_or_none()
     if contract is None:
         raise HTTPException(status_code=404, detail="Contract not found")
+    if contract.user_id is not None and contract.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
     if contract.status != "ready":
         raise HTTPException(
             status_code=409,

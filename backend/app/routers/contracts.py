@@ -9,7 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies.auth import get_current_user
 from app.models.contract import Contract
+from app.models.user import User
 from app.schemas.contract import ContractResponse, UploadUrlRequest, UploadUrlResponse
 from app.services import storage
 from app.services.vector_store import delete_namespace
@@ -28,6 +30,7 @@ router = APIRouter()
 async def get_upload_url(
     body: UploadUrlRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Create a contract record and return a presigned R2 upload URL."""
     contract_id = uuid.uuid4()
@@ -41,16 +44,17 @@ async def get_upload_url(
 
     contract = Contract(
         id=contract_id,
+        user_id=current_user.id,
         filename=body.filename,
         file_url=file_url,
         file_size_bytes=body.file_size_bytes,
         status="uploading",
-        pinecone_namespace=f"contract_{contract_id}",
+        pinecone_namespace=f"user_{current_user.id}_contract_{contract_id}",
     )
     db.add(contract)
     await db.flush()
 
-    logger.info("Created contract %s for file '%s'", contract_id, body.filename)
+    logger.info("Created contract %s for file '%s' (user %s)", contract_id, body.filename, current_user.id)
 
     return {
         "success": True,
@@ -69,9 +73,10 @@ async def get_upload_url(
 async def confirm_upload(
     contract_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Mark a contract as uploaded and kick off the processing pipeline."""
-    contract = await _get_contract_or_404(contract_id, db)
+    contract = await _get_user_contract_or_404(contract_id, current_user, db)
 
     if contract.status not in ("uploading", "error"):
         return {
@@ -98,10 +103,15 @@ async def confirm_upload(
 
 @router.get("")
 @router.get("/")
-async def list_contracts(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
-    """List all contracts ordered by creation date descending."""
+async def list_contracts(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """List all contracts for the current user, ordered by creation date descending."""
     result = await db.execute(
-        select(Contract).order_by(Contract.created_at.desc())
+        select(Contract)
+        .where(Contract.user_id == current_user.id)
+        .order_by(Contract.created_at.desc())
     )
     contracts = result.scalars().all()
 
@@ -119,9 +129,10 @@ async def list_contracts(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
 async def get_contract(
     contract_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Get a single contract by ID."""
-    contract = await _get_contract_or_404(contract_id, db)
+    """Get a single contract by ID (must belong to current user)."""
+    contract = await _get_user_contract_or_404(contract_id, current_user, db)
     return {
         "success": True,
         "data": ContractResponse.model_validate(contract).model_dump(mode="json"),
@@ -136,9 +147,10 @@ async def get_contract(
 async def delete_contract(
     contract_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Delete a contract and all its associated data."""
-    contract = await _get_contract_or_404(contract_id, db)
+    """Delete a contract and all its associated data (must belong to current user)."""
+    contract = await _get_user_contract_or_404(contract_id, current_user, db)
 
     try:
         object_key = storage.object_key_for_contract(str(contract_id))
@@ -158,7 +170,7 @@ async def delete_contract(
 
 
 # ---------------------------------------------------------------------------
-# Shared helper
+# Shared helpers
 # ---------------------------------------------------------------------------
 
 async def _get_contract_or_404(contract_id: uuid.UUID, db: AsyncSession) -> Contract:
@@ -166,4 +178,13 @@ async def _get_contract_or_404(contract_id: uuid.UUID, db: AsyncSession) -> Cont
     contract = result.scalar_one_or_none()
     if contract is None:
         raise HTTPException(status_code=404, detail="Contract not found")
+    return contract
+
+
+async def _get_user_contract_or_404(
+    contract_id: uuid.UUID, current_user: User, db: AsyncSession
+) -> Contract:
+    contract = await _get_contract_or_404(contract_id, db)
+    if contract.user_id is not None and contract.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
     return contract

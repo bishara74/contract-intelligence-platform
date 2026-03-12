@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.database import Base
-from app.models import contract, clause, risk, chat_message  # noqa: F401 — import models to register them
+from app.models import organization, user, contract, clause, risk, chat_message  # noqa: F401 — import models to register them
 
 config = context.config
 

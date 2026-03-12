@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # Redis / Celery
     redis_url: str = "redis://redis:6379/0"
 
+    # Clerk
+    clerk_secret_key: str = ""
+    clerk_webhook_secret: str = ""
+
     # CORS
     cors_origins: str = "http://localhost:5173,https://contract-intelligence-platform-3zjo.vercel.app"
 

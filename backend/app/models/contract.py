@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import DateTime, Enum, Integer, String, Text
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -12,6 +12,12 @@ class Contract(Base):
     __tablename__ = "contracts"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("organizations.id"), nullable=True, index=True
+    )
     filename: Mapped[str] = mapped_column(String, nullable=False)
     file_url: Mapped[str] = mapped_column(String, nullable=False)
     file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -34,6 +40,9 @@ class Contract(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
+    user: Mapped[Optional["User"]] = relationship(  # noqa: F821
+        "User", back_populates="contracts"
+    )
     clauses: Mapped[list["Clause"]] = relationship(  # noqa: F821
         "Clause", back_populates="contract", cascade="all, delete-orphan"
     )

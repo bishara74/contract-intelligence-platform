@@ -10,8 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies.auth import get_current_user
 from app.models.clause import Clause
 from app.models.contract import Contract
+from app.models.user import User
 from app.models.risk import Risk
 from app.schemas.risk import RiskResponse
 from app.services.risk_analyzer import SEVERITY_LEVELS
@@ -30,12 +32,13 @@ router = APIRouter()
 async def trigger_analyze_risks(
     contract_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Trigger risk analysis as a Celery task.
 
     Requires clauses to be extracted first (GET /clauses must return > 0 results).
     """
-    await _get_ready_contract(contract_id, db)
+    await _get_ready_contract(contract_id, current_user, db)
 
     # Verify clauses exist
     clause_result = await db.execute(
@@ -61,9 +64,10 @@ async def trigger_analyze_risks(
 async def get_risks(
     contract_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Return all risks sorted by severity (critical first) with counts per severity."""
-    await _get_ready_contract(contract_id, db)
+    await _get_ready_contract(contract_id, current_user, db)
 
     # Order by severity: critical -> high -> medium -> low
     result = await db.execute(
@@ -98,11 +102,15 @@ async def get_risks(
 # Shared helper
 # ---------------------------------------------------------------------------
 
-async def _get_ready_contract(contract_id: uuid.UUID, db: AsyncSession) -> Contract:
+async def _get_ready_contract(
+    contract_id: uuid.UUID, current_user: User, db: AsyncSession
+) -> Contract:
     result = await db.execute(select(Contract).where(Contract.id == contract_id))
     contract = result.scalar_one_or_none()
     if contract is None:
         raise HTTPException(status_code=404, detail="Contract not found")
+    if contract.user_id is not None and contract.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
     if contract.status != "ready":
         raise HTTPException(
             status_code=409,

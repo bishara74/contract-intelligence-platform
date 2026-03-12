@@ -10,8 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies.auth import get_current_user
 from app.models.clause import Clause
 from app.models.contract import Contract
+from app.models.user import User
 from app.schemas.clause import ClauseResponse
 from app.tasks.contract_tasks import extract_clauses_task
 
@@ -28,9 +30,10 @@ router = APIRouter()
 async def trigger_extract_clauses(
     contract_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Trigger clause extraction as a Celery task."""
-    await _get_ready_contract(contract_id, db)
+    await _get_ready_contract(contract_id, current_user, db)
 
     extract_clauses_task.delay(str(contract_id))
 
@@ -46,9 +49,10 @@ async def trigger_extract_clauses(
 async def get_clauses(
     contract_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Return extracted clauses grouped by type."""
-    await _get_ready_contract(contract_id, db)
+    await _get_ready_contract(contract_id, current_user, db)
 
     result = await db.execute(
         select(Clause)
@@ -76,11 +80,15 @@ async def get_clauses(
 # Shared helper
 # ---------------------------------------------------------------------------
 
-async def _get_ready_contract(contract_id: uuid.UUID, db: AsyncSession) -> Contract:
+async def _get_ready_contract(
+    contract_id: uuid.UUID, current_user: User, db: AsyncSession
+) -> Contract:
     result = await db.execute(select(Contract).where(Contract.id == contract_id))
     contract = result.scalar_one_or_none()
     if contract is None:
         raise HTTPException(status_code=404, detail="Contract not found")
+    if contract.user_id is not None and contract.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
     if contract.status != "ready":
         raise HTTPException(
             status_code=409,
