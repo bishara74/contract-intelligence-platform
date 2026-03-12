@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     clerk_webhook_secret: str = ""
 
     # CORS
-    cors_origins: str = "http://localhost:5173,https://contract-intelligence-platform-3zjo.vercel.app"
+    cors_origins: str = "http://localhost:5173,https://contract-intelligence-platform-3zjo.vercel.app,https://contract-intelligence-platform-3zjo-del8q4hgg.vercel.app"
 
     @property
     def cors_origins_list(self) -> list[str]:
