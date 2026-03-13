@@ -21,19 +21,26 @@ JWKS_CACHE_TTL = 3600  # 1 hour
 
 async def _get_jwks_keys() -> list:
     """Fetch and cache Clerk's JWKS public keys."""
+    if not settings.clerk_secret_key:
+        raise HTTPException(status_code=503, detail="Clerk secret key not configured")
+
     now = time.time()
     if _jwks_cache["keys"] and (now - _jwks_cache["fetched_at"]) < JWKS_CACHE_TTL:
         return _jwks_cache["keys"]
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            "https://api.clerk.com/v1/jwks",
-            headers={"Authorization": f"Bearer {settings.clerk_secret_key}"},
-        )
-        resp.raise_for_status()
-        _jwks_cache["keys"] = resp.json()["keys"]
-        _jwks_cache["fetched_at"] = now
-        return _jwks_cache["keys"]
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://api.clerk.com/v1/jwks",
+                headers={"Authorization": f"Bearer {settings.clerk_secret_key}"},
+            )
+            resp.raise_for_status()
+            _jwks_cache["keys"] = resp.json()["keys"]
+            _jwks_cache["fetched_at"] = now
+            return _jwks_cache["keys"]
+    except httpx.HTTPError as e:
+        logger.error("Failed to fetch Clerk JWKS: %s", e)
+        raise HTTPException(status_code=503, detail="Authentication service unavailable")
 
 
 async def get_current_user(

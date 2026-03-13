@@ -36,3 +36,7 @@ Thumbs.db
 
 # Docker
 *.log
+
+# Claude Code task files
+claude-code-*.md
+CLAUDE-updated.md
