@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.chat_message import ChatMessage
@@ -38,63 +39,116 @@ async def chat(
     """
     contract = await _get_ready_contract(contract_id, current_user, db)
 
-    # Load last 20 messages for context (we pass the last 10 to the chain inside rag.py)
-    history_result = await db.execute(
-        select(ChatMessage)
-        .where(ChatMessage.contract_id == contract_id)
-        .order_by(ChatMessage.created_at.asc())
-        .limit(20)
-    )
-    history_messages = history_result.scalars().all()
-    chat_history = [{"role": m.role, "content": m.content} for m in history_messages]
+    if settings.use_dynamodb:
+        from app.services.dynamodb import save_chat_message, get_chat_history as dynamo_get_history
 
-    # Persist the user message first
-    user_msg = ChatMessage(
-        contract_id=contract_id,
-        role="user",
-        content=body.question,
-        source_chunks=None,
-    )
-    db.add(user_msg)
-    await db.flush()
-
-    # Run RAG pipeline
-    try:
-        result = await ask(
-            question=body.question,
-            namespace=contract.pinecone_namespace,
-            chat_history=chat_history,
+        # Save user message to DynamoDB
+        save_chat_message(
+            contract_id=str(contract_id),
+            user_id=str(current_user.id),
+            role="user",
+            content=body.question,
         )
-    except Exception as e:
-        logger.exception("RAG pipeline failed for contract %s: %s", contract_id, e)
-        raise HTTPException(status_code=502, detail=f"RAG pipeline error: {e}") from e
 
-    answer = result["answer"]
-    sources = result["sources"]
+        # Get chat history from DynamoDB for context (last 20)
+        dynamo_messages = dynamo_get_history(str(contract_id), limit=20)
+        chat_history = [{"role": m["role"], "content": m["content"]} for m in dynamo_messages]
 
-    # Persist the assistant response
-    assistant_msg = ChatMessage(
-        contract_id=contract_id,
-        role="assistant",
-        content=answer,
-        source_chunks=sources or None,
-    )
-    db.add(assistant_msg)
-    await db.flush()
+        # Run RAG pipeline
+        try:
+            result = await ask(
+                question=body.question,
+                namespace=contract.pinecone_namespace,
+                chat_history=chat_history,
+            )
+        except Exception as e:
+            logger.exception("RAG pipeline failed for contract %s: %s", contract_id, e)
+            raise HTTPException(status_code=502, detail=f"RAG pipeline error: {e}") from e
 
-    logger.info(
-        "Chat answered for contract %s: %d source chunks",
-        contract_id, len(sources),
-    )
+        answer = result["answer"]
+        sources = result["sources"]
 
-    return {
-        "success": True,
-        "data": ChatResponse(
-            answer=answer,
-            sources=[SourceChunk(**s) for s in sources],
-            message_id=assistant_msg.id,
-        ).model_dump(mode="json"),
-    }
+        # Save assistant response to DynamoDB
+        assistant_item = save_chat_message(
+            contract_id=str(contract_id),
+            user_id=str(current_user.id),
+            role="assistant",
+            content=answer,
+            source_chunks=sources or None,
+        )
+
+        logger.info(
+            "Chat answered for contract %s: %d source chunks (DynamoDB)",
+            contract_id, len(sources),
+        )
+
+        return {
+            "success": True,
+            "data": ChatResponse(
+                answer=answer,
+                sources=[SourceChunk(**s) for s in sources],
+                message_id=uuid.UUID(assistant_item["message_id"]),
+            ).model_dump(mode="json"),
+        }
+    else:
+        # PostgreSQL path (existing code)
+        # Load last 20 messages for context (we pass the last 10 to the chain inside rag.py)
+        history_result = await db.execute(
+            select(ChatMessage)
+            .where(ChatMessage.contract_id == contract_id)
+            .order_by(ChatMessage.created_at.asc())
+            .limit(20)
+        )
+        history_messages = history_result.scalars().all()
+        chat_history = [{"role": m.role, "content": m.content} for m in history_messages]
+
+        # Persist the user message first
+        user_msg = ChatMessage(
+            contract_id=contract_id,
+            role="user",
+            content=body.question,
+            source_chunks=None,
+        )
+        db.add(user_msg)
+        await db.flush()
+
+        # Run RAG pipeline
+        try:
+            result = await ask(
+                question=body.question,
+                namespace=contract.pinecone_namespace,
+                chat_history=chat_history,
+            )
+        except Exception as e:
+            logger.exception("RAG pipeline failed for contract %s: %s", contract_id, e)
+            raise HTTPException(status_code=502, detail=f"RAG pipeline error: {e}") from e
+
+        answer = result["answer"]
+        sources = result["sources"]
+
+        # Persist the assistant response
+        assistant_msg = ChatMessage(
+            contract_id=contract_id,
+            role="assistant",
+            content=answer,
+            source_chunks=sources or None,
+        )
+        db.add(assistant_msg)
+        await db.flush()
+
+        logger.info(
+            "Chat answered for contract %s: %d source chunks",
+            contract_id, len(sources),
+        )
+
+        return {
+            "success": True,
+            "data": ChatResponse(
+                answer=answer,
+                sources=[SourceChunk(**s) for s in sources],
+                message_id=assistant_msg.id,
+            ).model_dump(mode="json"),
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -110,22 +164,43 @@ async def get_chat_history(
     """Return all chat messages for a contract in chronological order."""
     await _get_ready_contract(contract_id, current_user, db)
 
-    result = await db.execute(
-        select(ChatMessage)
-        .where(ChatMessage.contract_id == contract_id)
-        .order_by(ChatMessage.created_at.asc())
-    )
-    messages = result.scalars().all()
+    if settings.use_dynamodb:
+        from app.services.dynamodb import get_chat_history as dynamo_get_history
 
-    return {
-        "success": True,
-        "data": {
-            "messages": [
-                ChatMessageResponse.model_validate(m).model_dump(mode="json")
-                for m in messages
-            ]
-        },
-    }
+        messages = dynamo_get_history(str(contract_id))
+        return {
+            "success": True,
+            "data": {
+                "messages": [
+                    {
+                        "id": m["message_id"],
+                        "contract_id": m["contract_id"],
+                        "role": m["role"],
+                        "content": m["content"],
+                        "source_chunks": m.get("source_chunks") or None,
+                        "created_at": m["created_at"],
+                    }
+                    for m in messages
+                ]
+            },
+        }
+    else:
+        result = await db.execute(
+            select(ChatMessage)
+            .where(ChatMessage.contract_id == contract_id)
+            .order_by(ChatMessage.created_at.asc())
+        )
+        messages = result.scalars().all()
+
+        return {
+            "success": True,
+            "data": {
+                "messages": [
+                    ChatMessageResponse.model_validate(m).model_dump(mode="json")
+                    for m in messages
+                ]
+            },
+        }
 
 
 # ---------------------------------------------------------------------------

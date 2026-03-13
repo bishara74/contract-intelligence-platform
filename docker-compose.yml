@@ -27,6 +27,12 @@ services:
       timeout: 5s
       retries: 5
 
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    ports:
+      - "8001:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+
   api:
     build:
       context: ./backend
@@ -38,6 +44,12 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/contract_intel
       - REDIS_URL=redis://redis:6379/0
+      - USE_DYNAMODB=true
+      - DYNAMODB_ENDPOINT_URL=http://dynamodb-local:8000
+      - AWS_REGION=eu-central-1
+      - AWS_ACCESS_KEY_ID_DYNAMO=dummy
+      - AWS_SECRET_ACCESS_KEY_DYNAMO=dummy
+      - DYNAMODB_TABLE_NAME=contract-intel-chat-messages
     env_file:
       - .env
     depends_on:
@@ -45,6 +57,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      dynamodb-local:
+        condition: service_started
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   celery-worker:
@@ -57,6 +71,12 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/contract_intel
       - REDIS_URL=redis://redis:6379/0
+      - USE_DYNAMODB=true
+      - DYNAMODB_ENDPOINT_URL=http://dynamodb-local:8000
+      - AWS_REGION=eu-central-1
+      - AWS_ACCESS_KEY_ID_DYNAMO=dummy
+      - AWS_SECRET_ACCESS_KEY_DYNAMO=dummy
+      - DYNAMODB_TABLE_NAME=contract-intel-chat-messages
     env_file:
       - .env
     depends_on:

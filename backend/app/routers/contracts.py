@@ -169,6 +169,14 @@ async def delete_contract(
     except Exception as e:
         logger.warning("Could not delete Pinecone namespace for contract %s: %s", contract_id, e)
 
+    if settings.use_dynamodb:
+        try:
+            from app.services.dynamodb import delete_chat_messages
+            deleted = delete_chat_messages(str(contract_id))
+            logger.info("Deleted %d DynamoDB chat messages for contract %s", deleted, contract_id)
+        except Exception as e:
+            logger.warning("Could not delete DynamoDB messages for contract %s: %s", contract_id, e)
+
     await db.delete(contract)
     logger.info("Deleted contract %s", contract_id)
 

@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     use_celery: bool = False
 
+    # AWS DynamoDB
+    use_dynamodb: bool = False
+    aws_region: str = "eu-central-1"
+    dynamodb_table_name: str = "contract-intel-chat-messages"
+    dynamodb_endpoint_url: str = ""  # Empty = real AWS, http://dynamodb-local:8000 for local
+    aws_access_key_id_dynamo: str = ""
+    aws_secret_access_key_dynamo: str = ""
+
     # Clerk
     clerk_secret_key: str = ""
     clerk_webhook_secret: str = ""

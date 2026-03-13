@@ -91,3 +91,25 @@ variable "frontend_url" {
   type        = string
   default     = "https://contract-intelligence-platform-3zjo.vercel.app"
 }
+
+# -----------------------------------------------------------------------------
+# AWS (DynamoDB)
+# -----------------------------------------------------------------------------
+
+variable "aws_region" {
+  description = "AWS region for DynamoDB and Lambda"
+  type        = string
+  default     = "eu-central-1"
+}
+
+variable "aws_access_key_id" {
+  description = "AWS access key"
+  type        = string
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  description = "AWS secret key"
+  type        = string
+  sensitive   = true
+}
