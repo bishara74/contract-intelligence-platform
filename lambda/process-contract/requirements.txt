@@ -1,0 +1,7 @@
+httpx>=0.28.0
+PyMuPDF>=1.24.12
+langchain>=0.3.7,<1.0.0
+langchain-openai>=0.3.11,<2.0.0
+openai>=1.54.4
+pinecone-client>=5.0.1
+psycopg2-binary>=2.9.0

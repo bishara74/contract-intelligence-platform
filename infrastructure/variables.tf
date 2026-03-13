@@ -113,3 +113,9 @@ variable "aws_secret_access_key" {
   type        = string
   sensitive   = true
 }
+
+variable "database_url_sync" {
+  description = "Sync PostgreSQL URL for Lambda (not asyncpg)"
+  type        = string
+  sensitive   = true
+}

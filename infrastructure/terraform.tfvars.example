@@ -21,6 +21,7 @@ clerk_webhook_secret = "whsec_..."
 aws_access_key_id     = "AKIA..."
 aws_secret_access_key = "..."
 aws_region            = "eu-central-1"
+database_url_sync     = "postgresql://user:pass@host/db"
 
 # App
 app_name        = "contract-intelligence-platform"

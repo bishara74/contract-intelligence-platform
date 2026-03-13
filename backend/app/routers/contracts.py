@@ -88,7 +88,18 @@ async def confirm_upload(
     contract.status = "processing"
     await db.commit()
 
-    if settings.use_celery:
+    if settings.use_lambda:
+        from app.services.lambda_service import invoke_process_contract
+        object_key = storage.object_key_for_contract(str(contract_id))
+        file_url = storage.generate_download_url(object_key, expires_in=900)
+        invoke_process_contract(
+            contract_id=str(contract.id),
+            user_id=str(current_user.id),
+            file_url=file_url,
+            filename=contract.filename,
+            pinecone_namespace=contract.pinecone_namespace,
+        )
+    elif settings.use_celery:
         from app.tasks.contract_tasks import process_contract_task
         process_contract_task.delay(str(contract_id))
     else:

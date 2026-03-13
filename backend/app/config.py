@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     aws_access_key_id_dynamo: str = ""
     aws_secret_access_key_dynamo: str = ""
 
+    # AWS Lambda
+    use_lambda: bool = False
+    lambda_process_function_name: str = "contract-intel-process"
+
     # Clerk
     clerk_secret_key: str = ""
     clerk_webhook_secret: str = ""

@@ -63,6 +63,7 @@ A full-stack demo application that lets users upload PDF contracts, ask natural 
 PDF Upload → PyMuPDF Extraction → RecursiveCharacterTextSplitter
     → OpenAI Embeddings (text-embedding-3-small)
     → Pinecone Upsert (batch 100, namespace per contract)
+    Processing: AWS Lambda (serverless) > Celery + Redis > BackgroundTasks
 
 Query → Pinecone Similarity Search (k=5, score≥0.7)
       → Stuff Documents Chain → ChatOpenAI (gpt-4o-mini)
@@ -82,6 +83,7 @@ Query → Pinecone Similarity Search (k=5, score≥0.7)
 | **Backend** | **Python** 3.12, **FastAPI**, SQLAlchemy 2.0 async, Alembic, Pydantic v2 |
 | **Database** | **PostgreSQL** 16 (**SQL**), async via asyncpg |
 | **Chat Storage** | **AWS DynamoDB** — high-volume chat messages, on-demand pricing, PostgreSQL fallback |
+| **Serverless** | **AWS Lambda** — containerized PDF processing, **ECR** container registry |
 | **File Storage** | **Cloudflare R2** (S3-compatible), presigned URLs via boto3 |
 | **Frontend** | **React** 18, **TypeScript**, Vite, Tailwind CSS, shadcn/ui |
 | **State** | TanStack Query (server), Zustand (client) |
@@ -96,6 +98,11 @@ Query → Pinecone Similarity Search (k=5, score≥0.7)
 contract-intel/
 ├── docker-compose.yml
 ├── .env.example
+├── lambda/
+│   └── process-contract/   # AWS Lambda for serverless PDF processing
+│       ├── handler.py      # Lambda entry point (parse → chunk → embed → upsert)
+│       ├── Dockerfile       # ECR container image (python:3.12 Lambda base)
+│       └── requirements.txt
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI app, CORS, global error handlers
@@ -110,7 +117,8 @@ contract-intel/
 │   │       ├── rag.py           # LangChain LCEL retrieval chain
 │   │       ├── clause_extractor.py  # LangChain structured output
 │   │       ├── risk_analyzer.py     # LangChain risk analysis
-│   │       └── dynamodb.py      # AWS DynamoDB chat message storage
+│   │       ├── dynamodb.py      # AWS DynamoDB chat message storage
+│   │       └── lambda_service.py # AWS Lambda invocation for PDF processing
 │   ├── scripts/
 │   │   └── create_dynamodb_table.py  # DynamoDB table setup script
 │   └── alembic/                 # Database migrations
@@ -237,6 +245,9 @@ All cloud infrastructure is defined as code in the `infrastructure/` directory u
 | Web Service | Render | FastAPI backend (Docker) |
 | PostgreSQL | Render | Contract and user metadata |
 | DynamoDB Table | AWS | Chat message storage (on-demand) |
+| Lambda Function | AWS | Serverless PDF processing (container image) |
+| ECR Repository | AWS | Container registry for Lambda image |
+| IAM Role | AWS | Lambda execution role |
 | R2 Bucket | Cloudflare | PDF file storage |
 | Vector Index | Pinecone | Semantic search embeddings |
 
@@ -273,6 +284,7 @@ npm run build
 - **Jaccard deduplication** on extracted clauses — chunks overlap, so the same clause can appear multiple times; deduplication keeps the highest-confidence version
 - **Similarity score threshold 0.7** on retrieval — prevents hallucination from low-quality matches
 - **DynamoDB for chat messages** with PostgreSQL fallback — `USE_DYNAMODB` flag switches between DynamoDB (high-volume, schema-flexible) and PostgreSQL; Render deploys without AWS default to PostgreSQL
+- **Three-way processing fallback** — PDF processing uses AWS Lambda (serverless, 1 GB RAM, 5-min timeout) when `USE_LAMBDA=true`, falls back to Celery + Redis, then to FastAPI BackgroundTasks. Lambda only handles `process_contract`; clause extraction and risk analysis remain on Celery/BackgroundTasks
 
 ---
 
@@ -291,4 +303,4 @@ npm run build
 
 ## Keywords
 
-`LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `AWS DynamoDB` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`
+`LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `AWS Lambda` · `AWS DynamoDB` · `AWS ECR` · `Serverless` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`
