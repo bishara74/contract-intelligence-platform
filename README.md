@@ -48,12 +48,13 @@ A full-stack demo application that lets users upload PDF contracts, ask natural 
     │ Contracts  │  │ PDF files  │  │  text-embedding-3-small      │
     │ Clauses    │  │ (S3-compat)│  └─────────────────────────────┘
     │ Risks      │  └────────────┘
-    │ Messages   │           ┌──────────────────────────────────────┐
-    └────────────┘           │       Pinecone Serverless            │
-                             │   Vector Database · Semantic Search  │
-                             │   1536-dim · cosine · per-contract   │
-                             │         namespaces                   │
-                             └──────────────────────────────────────┘
+    └────────────┘  ┌────────────┐  ┌──────────────────────────────┐
+                    │   AWS      │  │       Pinecone Serverless     │
+    ┌────────────┐  │  DynamoDB  │  │  Vector Database · Semantic   │
+    │ DynamoDB   │  │ Chat Msgs  │  │  Search · 1536-dim · cosine   │
+    │  Local     │  │ (primary)  │  │  per-contract namespaces      │
+    │ (dev only) │  └────────────┘  └──────────────────────────────┘
+    └────────────┘
 ```
 
 ### RAG Pipeline (LangChain LCEL)
@@ -80,6 +81,7 @@ Query → Pinecone Similarity Search (k=5, score≥0.7)
 | **NLP / Parsing** | PyMuPDF, LangChain `RecursiveCharacterTextSplitter`, Pydantic structured output |
 | **Backend** | **Python** 3.12, **FastAPI**, SQLAlchemy 2.0 async, Alembic, Pydantic v2 |
 | **Database** | **PostgreSQL** 16 (**SQL**), async via asyncpg |
+| **Chat Storage** | **AWS DynamoDB** — high-volume chat messages, on-demand pricing, PostgreSQL fallback |
 | **File Storage** | **Cloudflare R2** (S3-compatible), presigned URLs via boto3 |
 | **Frontend** | **React** 18, **TypeScript**, Vite, Tailwind CSS, shadcn/ui |
 | **State** | TanStack Query (server), Zustand (client) |
@@ -107,7 +109,10 @@ contract-intel/
 │   │       ├── vector_store.py  # Pinecone + OpenAI Embeddings
 │   │       ├── rag.py           # LangChain LCEL retrieval chain
 │   │       ├── clause_extractor.py  # LangChain structured output
-│   │       └── risk_analyzer.py     # LangChain risk analysis
+│   │       ├── risk_analyzer.py     # LangChain risk analysis
+│   │       └── dynamodb.py      # AWS DynamoDB chat message storage
+│   ├── scripts/
+│   │   └── create_dynamodb_table.py  # DynamoDB table setup script
 │   └── alembic/                 # Database migrations
 └── frontend/
     └── src/
@@ -175,14 +180,18 @@ docker compose up --build
 
 This starts:
 - **PostgreSQL** on port 5432
+- **DynamoDB Local** on port 8001 (in-memory, for chat messages)
 - **FastAPI** on port 8000 (hot reload)
 - **React dev server** on port 5173 (hot reload)
 
-### 3. Run database migrations
+### 3. Run database migrations and create DynamoDB table
 
 ```bash
 docker compose exec api alembic upgrade head
+docker compose exec api python -m scripts.create_dynamodb_table
 ```
+
+> **Note:** Chat messages are stored in DynamoDB when `USE_DYNAMODB=true` (default in Docker Compose). Set `USE_DYNAMODB=false` to fall back to PostgreSQL.
 
 ### 4. Open the app
 
@@ -227,6 +236,7 @@ All cloud infrastructure is defined as code in the `infrastructure/` directory u
 |----------|----------|---------|
 | Web Service | Render | FastAPI backend (Docker) |
 | PostgreSQL | Render | Contract and user metadata |
+| DynamoDB Table | AWS | Chat message storage (on-demand) |
 | R2 Bucket | Cloudflare | PDF file storage |
 | Vector Index | Pinecone | Semantic search embeddings |
 
@@ -262,6 +272,7 @@ npm run build
 - **Background tasks** with independent DB sessions — FastAPI's request session closes before processing finishes
 - **Jaccard deduplication** on extracted clauses — chunks overlap, so the same clause can appear multiple times; deduplication keeps the highest-confidence version
 - **Similarity score threshold 0.7** on retrieval — prevents hallucination from low-quality matches
+- **DynamoDB for chat messages** with PostgreSQL fallback — `USE_DYNAMODB` flag switches between DynamoDB (high-volume, schema-flexible) and PostgreSQL; Render deploys without AWS default to PostgreSQL
 
 ---
 
@@ -280,4 +291,4 @@ npm run build
 
 ## Keywords
 
-`LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`
+`LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `AWS DynamoDB` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`
