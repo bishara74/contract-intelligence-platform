@@ -267,11 +267,14 @@ npm run build
 
 ## Screenshots
 
-_[Dashboard screenshot placeholder]_
+### Chat — RAG Q&A with Source Citations
+![Chat interface with source citations](docs/screenshots/chat.png)
 
-_[Chat interface with source citations placeholder]_
+### Clause Extraction — Grouped by Type
+![Clause extraction tab](docs/screenshots/clauses.png)
 
-_[Risk analysis with severity breakdown placeholder]_
+### Risk Analysis — Severity Breakdown
+![Risk analysis with severity breakdown](docs/screenshots/risks.png)
 
 ---
 
