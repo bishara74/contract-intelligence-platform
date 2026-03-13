@@ -288,6 +288,30 @@ npm run build
 
 ---
 
+## Testing
+
+The backend includes a comprehensive **pytest** test suite with **40 tests** covering all API endpoints, services, and integrations.
+
+**What's tested:**
+- Health endpoint and database connectivity
+- Clerk JWT authentication and unauthorized access
+- Contract CRUD with user data isolation (403 for other users' contracts)
+- RAG chat pipeline with mocked LangChain
+- Clause extraction and risk analysis endpoints
+- PDF parsing and chunking (PyMuPDF + LangChain splitter)
+- DynamoDB chat message storage (save, query, delete)
+- Cloudflare R2 presigned URL generation
+
+**Run tests:**
+
+```bash
+docker compose exec api python -m pytest tests/ -v
+```
+
+Tests use an in-memory SQLite database and mock all external services (OpenAI, Pinecone, R2, DynamoDB) for fast, isolated execution.
+
+---
+
 ## Screenshots
 
 ### Chat — RAG Q&A with Source Citations
