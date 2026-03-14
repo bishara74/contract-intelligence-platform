@@ -45,6 +45,17 @@ def _convert_decimals(obj: Any) -> Any:
     return obj
 
 
+def _convert_floats_to_decimal(obj: Any) -> Any:
+    """Recursively convert float values to Decimal for DynamoDB storage."""
+    if isinstance(obj, float):
+        return Decimal(str(obj))
+    if isinstance(obj, dict):
+        return {k: _convert_floats_to_decimal(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_convert_floats_to_decimal(v) for v in obj]
+    return obj
+
+
 def save_chat_message(
     contract_id: str,
     user_id: str,
@@ -70,6 +81,7 @@ def save_chat_message(
         "source_chunks": source_chunks or [],
     }
 
+    item = _convert_floats_to_decimal(item)
     table.put_item(Item=item)
     logger.info("Saved %s message %s to DynamoDB for contract %s", role, message_id, contract_id)
     return item
