@@ -69,7 +69,7 @@ async def get_current_user(
 
         payload = jwt.decode(token, signing_key, algorithms=["RS256"])
         clerk_id = payload.get("sub")
-        email = payload.get("email", "")
+        email = payload.get("email") or None
 
         if not clerk_id:
             raise HTTPException(status_code=401, detail="Invalid token claims")
