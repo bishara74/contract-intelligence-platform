@@ -116,7 +116,8 @@ type UploadState =
   | { phase: "selected"; file: File }
   | { phase: "uploading" }
   | { phase: "processing"; contractId: string }
-  | { phase: "error"; message: string };
+  | { phase: "error"; message: string }
+  | { phase: "duplicate"; message: string };
 
 function UploadModal({
   open,
@@ -160,15 +161,17 @@ function UploadModal({
 
       setUploadState({ phase: "processing", contractId: contract_id });
     } catch (err: unknown) {
+      // Check for 409 duplicate — show as a friendly warning, not an error
+      const axiosErr = err as { response?: { status?: number; data?: { error?: { message?: string } } } };
+      if (axiosErr?.response?.status === 409) {
+        const msg = "A contract with this name has already been uploaded. Please rename the file or delete the existing contract first.";
+        setUploadState({ phase: "duplicate", message: msg });
+        return;
+      }
+
       let msg = "Upload failed";
-      if (err && typeof err === "object" && "message" in err) {
-        // Axios errors rejected by the response interceptor contain { code, message }
-        const apiErr = err as { code?: string; message?: string };
-        if (apiErr.code === "409" || apiErr.message?.includes("already exists")) {
-          msg = apiErr.message ?? "A contract with this filename already exists.";
-        } else if (apiErr.message) {
-          msg = apiErr.message;
-        }
+      if (axiosErr?.response?.data?.error?.message) {
+        msg = axiosErr.response.data.error.message;
       } else if (err instanceof Error) {
         msg = err.message;
       }
@@ -203,7 +206,7 @@ function UploadModal({
           ) : uploadState.phase === "uploading" ? (
             <div className="flex items-center justify-center gap-3 py-8 text-sm text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
-              Uploading to secure storage…
+              Uploading your contract…
             </div>
           ) : uploadState.phase === "processing" && processingContract ? (
             <ProcessingStatus
@@ -211,6 +214,11 @@ function UploadModal({
               filename={processingContract.filename}
               errorMessage={processingContract.error_message}
             />
+          ) : uploadState.phase === "duplicate" ? (
+            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+              <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              {uploadState.message}
+            </div>
           ) : uploadState.phase === "error" ? (
             <div className="flex items-center gap-2 text-sm text-destructive py-4">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -220,7 +228,7 @@ function UploadModal({
         </div>
 
         <DialogFooter>
-          {(uploadState.phase === "idle" || uploadState.phase === "selected" || uploadState.phase === "error") && (
+          {(uploadState.phase === "idle" || uploadState.phase === "selected" || uploadState.phase === "error" || uploadState.phase === "duplicate") && (
             <>
               <Button variant="outline" onClick={handleClose}>Cancel</Button>
               {uploadState.phase === "selected" && (
@@ -229,7 +237,7 @@ function UploadModal({
                   Upload
                 </Button>
               )}
-              {uploadState.phase === "error" && (
+              {(uploadState.phase === "error" || uploadState.phase === "duplicate") && (
                 <Button variant="outline" onClick={() => setUploadState({ phase: "idle" })}>
                   Try Again
                 </Button>

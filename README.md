@@ -322,6 +322,8 @@ Lambda pipeline: R2 download → PyMuPDF parse → LangChain chunk → OpenAI em
 - **Pinecone package** — renamed from `pinecone-client` to `pinecone` in Lambda requirements
 - **Duplicate upload prevention** — 409 Conflict when uploading a contract with a filename that already exists for the same user
 - **Landing page copy** — removed technical jargon (RAG, LangChain, GPT-4o mini) from public-facing text
+- **Upload progress UI** — simplified to show filename, progress bar, and simple status messages instead of technical processing steps
+- **Duplicate upload error** — shows user-friendly warning message instead of raw 409 status code
 
 ---
 
