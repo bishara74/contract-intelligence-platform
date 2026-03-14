@@ -285,12 +285,49 @@ npm run build
 - **Similarity score threshold 0.7** on retrieval — prevents hallucination from low-quality matches
 - **DynamoDB for chat messages** with PostgreSQL fallback — `USE_DYNAMODB` flag switches between DynamoDB (high-volume, schema-flexible) and PostgreSQL; Render deploys without AWS default to PostgreSQL
 - **Three-way processing fallback** — PDF processing uses AWS Lambda (serverless, 1 GB RAM, 5-min timeout) when `USE_LAMBDA=true`, falls back to Celery + Redis, then to FastAPI BackgroundTasks. Lambda only handles `process_contract`; clause extraction and risk analysis remain on Celery/BackgroundTasks
+- **Duplicate upload prevention** — uploading a contract with the same filename as an existing one returns 409 Conflict (per-user scope, no cross-user collision)
+
+---
+
+## Production Deployment
+
+### AWS Infrastructure (eu-north-1)
+
+| Resource | Details |
+|----------|---------|
+| **DynamoDB** | Table `contract-intel-chat-messages` — chat message storage (PAY_PER_REQUEST) |
+| **Lambda** | Function `contract-intel-process` — serverless PDF processing (1024 MB, 300s timeout) |
+| **ECR** | `916868259011.dkr.ecr.eu-north-1.amazonaws.com/contract-intel-process` |
+
+### Processing Pipeline
+
+Three-way fallback active in production:
+1. **AWS Lambda** (primary, `USE_LAMBDA=true`) — containerized PDF processing via ECR image
+2. **Celery + Redis** — local/staging fallback
+3. **FastAPI BackgroundTasks** — minimal fallback (no Redis needed)
+
+Lambda pipeline: R2 download → PyMuPDF parse → LangChain chunk → OpenAI embed → Pinecone upsert → PostgreSQL status update.
+
+### Render Environment
+
+- `USE_DYNAMODB=true` — chat messages stored in AWS DynamoDB
+- `USE_LAMBDA=true` — PDF processing via AWS Lambda
+- `DATABASE_URL` — external Render PostgreSQL URL with `?sslmode=require`
+- Lambda `DATABASE_URL` uses sync PostgreSQL driver (psycopg2) pointing to the same Render DB
+
+### Recent Fixes
+
+- **Float-to-Decimal conversion** — DynamoDB `put_item` crashes on Python floats; `_convert_floats_to_decimal()` in `source_chunks` serialization
+- **Empty email handling** — user creation uses placeholder emails for Clerk users without email; `IntegrityError` retry on duplicate `clerk_id`
+- **Pinecone package** — renamed from `pinecone-client` to `pinecone` in Lambda requirements
+- **Duplicate upload prevention** — 409 Conflict when uploading a contract with a filename that already exists for the same user
+- **Landing page copy** — removed technical jargon (RAG, LangChain, GPT-4o mini) from public-facing text
 
 ---
 
 ## Testing
 
-The backend includes a comprehensive **pytest** test suite with **40 tests** covering all API endpoints, services, and integrations.
+The backend includes a comprehensive **pytest** test suite with **42 tests** covering all API endpoints, services, and integrations.
 
 **What's tested:**
 - Health endpoint and database connectivity

@@ -160,7 +160,18 @@ function UploadModal({
 
       setUploadState({ phase: "processing", contractId: contract_id });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Upload failed";
+      let msg = "Upload failed";
+      if (err && typeof err === "object" && "message" in err) {
+        // Axios errors rejected by the response interceptor contain { code, message }
+        const apiErr = err as { code?: string; message?: string };
+        if (apiErr.code === "409" || apiErr.message?.includes("already exists")) {
+          msg = apiErr.message ?? "A contract with this filename already exists.";
+        } else if (apiErr.message) {
+          msg = apiErr.message;
+        }
+      } else if (err instanceof Error) {
+        msg = err.message;
+      }
       setUploadState({ phase: "error", message: msg });
     }
   };

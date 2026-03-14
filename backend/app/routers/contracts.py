@@ -33,6 +33,19 @@ async def get_upload_url(
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Create a contract record and return a presigned R2 upload URL."""
+    # Check for duplicate filename for this user
+    existing = await db.execute(
+        select(Contract).where(
+            Contract.user_id == current_user.id,
+            Contract.filename == body.filename,
+        )
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="A contract with this filename already exists. Please rename the file or delete the existing contract first.",
+        )
+
     contract_id = uuid.uuid4()
     object_key = storage.object_key_for_contract(str(contract_id))
 

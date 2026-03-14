@@ -129,3 +129,63 @@ async def test_delete_other_users_contract_returns_403(
 
     resp = await client.delete(f"/api/v1/contracts/{contract_id}")
     assert resp.status_code == 403
+
+
+async def test_duplicate_filename_returns_409(
+    client: AsyncClient, mock_r2: MagicMock
+) -> None:
+    """Uploading a contract with the same filename for the same user returns 409."""
+    # First upload succeeds
+    resp1 = await client.post(
+        "/api/v1/contracts/upload-url",
+        json={"filename": "duplicate.pdf", "file_size_bytes": 5000},
+    )
+    assert resp1.status_code == 200
+
+    # Second upload with same filename returns 409
+    resp2 = await client.post(
+        "/api/v1/contracts/upload-url",
+        json={"filename": "duplicate.pdf", "file_size_bytes": 5000},
+    )
+    assert resp2.status_code == 409
+    assert "already exists" in resp2.json()["error"]["message"]
+
+
+async def test_different_user_can_upload_same_filename(
+    client: AsyncClient, test_user: User, mock_r2: MagicMock
+) -> None:
+    """Different users can upload files with the same filename (no cross-user conflict)."""
+    # Current user uploads a file
+    resp1 = await client.post(
+        "/api/v1/contracts/upload-url",
+        json={"filename": "shared-name.pdf", "file_size_bytes": 5000},
+    )
+    assert resp1.status_code == 200
+
+    # Create a different user and a contract with same filename directly in DB
+    other_user_id = uuid.uuid4()
+    contract_id = uuid.uuid4()
+    async with TestSessionLocal() as session:
+        other_user = User(
+            id=other_user_id,
+            clerk_id="clerk_other_dup",
+            email="otherdup@example.com",
+        )
+        session.add(other_user)
+        contract = Contract(
+            id=contract_id,
+            user_id=other_user_id,
+            filename="shared-name.pdf",
+            file_url="https://r2.example.com/other.pdf",
+            file_size_bytes=5000,
+            status="ready",
+            pinecone_namespace=f"user_{other_user_id}_contract_{contract_id}",
+        )
+        session.add(contract)
+        await session.commit()
+
+    # Original user should still only have their one contract (no conflict from other user)
+    resp2 = await client.get("/api/v1/contracts")
+    assert resp2.status_code == 200
+    filenames = [c["filename"] for c in resp2.json()["data"]]
+    assert "shared-name.pdf" in filenames

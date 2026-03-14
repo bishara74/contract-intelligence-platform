@@ -51,7 +51,10 @@ def test_save_message_with_sources() -> None:
             source_chunks=sources,
         )
 
-    assert item["source_chunks"] == sources
+    # Floats are converted to Decimal for DynamoDB compatibility
+    from decimal import Decimal
+    expected = [{"page": 3, "text": "30 days notice", "score": Decimal("0.92")}]
+    assert item["source_chunks"] == expected
 
 
 def test_get_history_empty() -> None:
