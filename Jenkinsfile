@@ -113,12 +113,12 @@ pipeline {
                     sh 'curl -s -X POST ${RENDER_HOOK}'
                 }
                 withCredentials([string(credentialsId: 'prod-database-url', variable: 'DATABASE_URL')]) {
-                    sh """
+                    sh '''
                         docker run --rm \
-                            -e DATABASE_URL=\${DATABASE_URL} \
-                            ${APP_NAME}-backend:\${BUILD_NUMBER} \
+                            -e DATABASE_URL=$(echo ${DATABASE_URL} | sed 's|postgresql://|postgresql+asyncpg://|') \
+                            contract-intel-backend:${BUILD_NUMBER} \
                             alembic upgrade head
-                    """
+                    '''
                 }
             }
         }
