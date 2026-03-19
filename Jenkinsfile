@@ -34,7 +34,7 @@ pipeline {
                     sh "docker build -t ${APP_NAME}-test -f Dockerfile ."
                     sh """
                         docker run --rm \
-                            -e DATABASE_URL=sqlite:///test.db \
+                            -e DATABASE_URL=sqlite+aiosqlite:///test.db \
                             -e OPENAI_API_KEY=fake-key-for-testing \
                             -e PINECONE_API_KEY=fake-key-for-testing \
                             -e PINECONE_INDEX_NAME=test-index \
