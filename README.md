@@ -89,7 +89,7 @@ Query → Pinecone Similarity Search (k=5, score≥0.7)
 | **State** | TanStack Query (server), Zustand (client) |
 | **Reverse Proxy** | **Nginx** — rate limiting, security headers, gzip, WebSocket support |
 | **Containerization** | **Docker**, Docker Compose |
-| **CI/CD** | **Jenkins** declarative pipeline, **Ruff** linter |
+| **CI/CD** | **Jenkins** 7-stage pipeline (lint → test → build → ECR push → deploy → smoke test), **Ruff** linter |
 | **Deployment** | **Vercel** (frontend), **Render** (backend), **Cloudflare R2** (storage) |
 
 ---
@@ -99,7 +99,7 @@ Query → Pinecone Similarity Search (k=5, score≥0.7)
 ```
 contract-intel/
 ├── Makefile                 # Dev/test/deploy shortcuts (make help)
-├── Jenkinsfile              # CI pipeline (lint + test)
+├── Jenkinsfile              # CI/CD pipeline (7 stages: lint → test → build → ECR → deploy → smoke)
 ├── nginx/
 │   ├── nginx.conf           # Reverse proxy config (rate limiting, security headers)
 │   └── Dockerfile           # nginx:alpine image
@@ -311,15 +311,26 @@ npm run build
 
 ## CI/CD (Jenkins)
 
-A declarative Jenkins pipeline ([`Jenkinsfile`](Jenkinsfile)) runs on every push with three stages:
+A declarative Jenkins pipeline ([`Jenkinsfile`](Jenkinsfile)) runs on every push with seven stages:
 
-| Stage | What it does |
-|-------|-------------|
-| **Checkout** | Clones the repo and prints branch name + build number |
-| **Lint** | Runs [Ruff](https://docs.astral.sh/ruff/) inside a `python:3.12-slim` container — checks pyflakes, pycodestyle, and isort rules (`backend/ruff.toml`) |
-| **Test** | Builds the backend Docker image and runs the full pytest suite (42 tests) with fake env vars — no external services needed |
+| Stage | What it does | Branch |
+|-------|-------------|--------|
+| **1. Checkout** | Clones the repo and prints branch name + build number | All |
+| **2. Lint** | Runs [Ruff](https://docs.astral.sh/ruff/) inside a `python:3.12-slim` container — checks pyflakes, pycodestyle, and isort rules (`backend/ruff.toml`) | All |
+| **3. Test** | Builds the backend Docker image and runs the full pytest suite (42 tests) with fake env vars — no external services needed | All |
+| **4. Build Images** | Parallel Docker builds: backend API image + Lambda processing image, tagged with build number and `latest` | All |
+| **5. Push to ECR** | Authenticates to ECR, pushes Lambda image (build number + latest tags), updates the Lambda function code | `main` only |
+| **6. Deploy** | Triggers Render deploy hook (backend), runs Alembic migrations against production DB via Docker | `main` only |
+| **7. Smoke Test** | Waits 90s for Render to deploy, then runs `healthcheck.sh` against `https://contract-intel-api.onrender.com` | `main` only |
 
-The pipeline cleans up dangling Docker images in the `post` block.
+Stages 5–7 only run on the `main` branch. The `post` block cleans up dangling Docker images and stopped containers.
+
+**Credentials required** (configure in Jenkins):
+| ID | Type | Purpose |
+|----|------|---------|
+| `aws-credentials` | AWS Credentials | ECR login + Lambda update |
+| `render-deploy-hook` | Secret text | Render deploy webhook URL |
+| `prod-database-url` | Secret text | Production DATABASE_URL for migrations |
 
 **Ruff config** (`backend/ruff.toml`): line-length 120, enables `F` (pyflakes), `E`/`W` (pycodestyle), `I` (isort), excludes `alembic/`.
 
