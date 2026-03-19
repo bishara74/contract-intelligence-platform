@@ -98,6 +98,10 @@ Query → Pinecone Similarity Search (k=5, score≥0.7)
 ```
 contract-intel/
 ├── Jenkinsfile              # CI pipeline (lint + test)
+├── scripts/
+│   ├── healthcheck.sh       # API health check (Jenkins smoke test / monitoring)
+│   ├── ecr-deploy.sh        # ECR login → Docker build → push → Lambda update
+│   └── db-backup.sh         # Compressed PostgreSQL backup with retention cleanup
 ├── docker-compose.yml
 ├── .env.example
 ├── lambda/
@@ -293,6 +297,31 @@ The pipeline cleans up dangling Docker images in the `post` block.
 
 ---
 
+## Operational Scripts
+
+Three shell scripts in [`scripts/`](scripts/) for deployment, monitoring, and database management:
+
+| Script | Purpose | Key env vars |
+|--------|---------|-------------|
+| [`healthcheck.sh`](scripts/healthcheck.sh) | API health check — hits `/api/v1/health`, reports HTTP status and response time, warns on slow responses (>5s) | `API_URL` (default: `http://localhost:8000`), `TIMEOUT` (default: `10`) |
+| [`ecr-deploy.sh`](scripts/ecr-deploy.sh) | Full Lambda deploy pipeline — ECR login, Docker build, push (timestamped + latest tags), Lambda function update, polls until deploy completes | `AWS_REGION`, `ECR_REPO`, `LAMBDA_FUNCTION`, `IMAGE_TAG` |
+| [`db-backup.sh`](scripts/db-backup.sh) | Compressed PostgreSQL backup — parses `DATABASE_URL`, runs `pg_dump \| gzip`, verifies backup, deletes expired backups | `DATABASE_URL` (required), `BACKUP_DIR` (default: `./backups`), `RETENTION_DAYS` (default: `7`) |
+
+All scripts use colored output, timestamps, `set -euo pipefail`, and exit with code 0/1.
+
+```bash
+# Health check
+API_URL=https://your-api.com ./scripts/healthcheck.sh
+
+# Deploy Lambda
+./scripts/ecr-deploy.sh
+
+# Database backup
+DATABASE_URL=postgresql://user:pass@host:5432/dbname ./scripts/db-backup.sh
+```
+
+---
+
 ## Key Engineering Decisions
 
 - **LangChain LCEL** over raw OpenAI SDK calls — composable, testable, swap-friendly
@@ -384,4 +413,4 @@ Tests use an in-memory SQLite database and mock all external services (OpenAI, P
 
 ## Keywords
 
-`Jenkins` · `CI/CD` · `Ruff` · `LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `AWS Lambda` · `AWS DynamoDB` · `AWS ECR` · `Serverless` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`
+`Shell Scripts` · `Jenkins` · `CI/CD` · `Ruff` · `LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `AWS Lambda` · `AWS DynamoDB` · `AWS ECR` · `Serverless` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`
