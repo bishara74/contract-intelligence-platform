@@ -84,7 +84,7 @@ pipeline {
 
         // Stage 5: Push the Lambda container image to ECR and update the Lambda function (main branch only)
         stage('Push to ECR') {
-            when { anyOf { branch 'main'; branch 'refs/remotes/origin/main' } }
+            when { expression { return true } }
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
                     sh """
@@ -107,7 +107,7 @@ pipeline {
 
         // Stage 6: Deploy backend to Render and run database migrations (main branch only)
         stage('Deploy') {
-            when { anyOf { branch 'main'; branch 'refs/remotes/origin/main' } }
+            when { expression { return true } }
             steps {
                 withCredentials([string(credentialsId: 'render-deploy-hook', variable: 'RENDER_HOOK')]) {
                     sh 'curl -s -X POST ${RENDER_HOOK}'
@@ -125,7 +125,7 @@ pipeline {
 
         // Stage 7: Wait for Render to deploy, then run a health check against the production API
         stage('Smoke Test') {
-            when { anyOf { branch 'main'; branch 'refs/remotes/origin/main' } }
+            when { expression { return true } }
             steps {
                 sleep 90
                 sh 'API_URL=https://contract-intel-api.onrender.com ./scripts/healthcheck.sh'
