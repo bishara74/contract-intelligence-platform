@@ -128,6 +128,7 @@ pipeline {
             when { expression { return true } }
             steps {
                 sleep 90
+                sh 'chmod +x ./scripts/healthcheck.sh'
                 sh 'API_URL=https://contract-intel-api.onrender.com ./scripts/healthcheck.sh'
             }
         }
