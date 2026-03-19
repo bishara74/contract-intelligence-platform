@@ -88,6 +88,7 @@ Query → Pinecone Similarity Search (k=5, score≥0.7)
 | **Frontend** | **React** 18, **TypeScript**, Vite, Tailwind CSS, shadcn/ui |
 | **State** | TanStack Query (server), Zustand (client) |
 | **Containerization** | **Docker**, Docker Compose |
+| **CI/CD** | **Jenkins** declarative pipeline, **Ruff** linter |
 | **Deployment** | **Vercel** (frontend), **Render** (backend), **Cloudflare R2** (storage) |
 
 ---
@@ -96,6 +97,7 @@ Query → Pinecone Similarity Search (k=5, score≥0.7)
 
 ```
 contract-intel/
+├── Jenkinsfile              # CI pipeline (lint + test)
 ├── docker-compose.yml
 ├── .env.example
 ├── lambda/
@@ -275,6 +277,22 @@ npm run build
 
 ---
 
+## CI/CD (Jenkins)
+
+A declarative Jenkins pipeline ([`Jenkinsfile`](Jenkinsfile)) runs on every push with three stages:
+
+| Stage | What it does |
+|-------|-------------|
+| **Checkout** | Clones the repo and prints branch name + build number |
+| **Lint** | Runs [Ruff](https://docs.astral.sh/ruff/) inside a `python:3.12-slim` container — checks pyflakes, pycodestyle, and isort rules (`backend/ruff.toml`) |
+| **Test** | Builds the backend Docker image and runs the full pytest suite (42 tests) with fake env vars — no external services needed |
+
+The pipeline cleans up dangling Docker images in the `post` block.
+
+**Ruff config** (`backend/ruff.toml`): line-length 120, enables `F` (pyflakes), `E`/`W` (pycodestyle), `I` (isort), excludes `alembic/`.
+
+---
+
 ## Key Engineering Decisions
 
 - **LangChain LCEL** over raw OpenAI SDK calls — composable, testable, swap-friendly
@@ -366,4 +384,4 @@ Tests use an in-memory SQLite database and mock all external services (OpenAI, P
 
 ## Keywords
 
-`LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `AWS Lambda` · `AWS DynamoDB` · `AWS ECR` · `Serverless` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`
+`Jenkins` · `CI/CD` · `Ruff` · `LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `AWS Lambda` · `AWS DynamoDB` · `AWS ECR` · `Serverless` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`

@@ -1,0 +1,9 @@
+line-length = 120
+
+[lint]
+select = ["F", "E", "W", "I"]
+
+[lint.isort]
+known-first-party = ["app"]
+
+exclude = ["alembic/"]
