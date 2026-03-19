@@ -41,7 +41,7 @@ pipeline {
                             -e R2_ENDPOINT_URL=http://fake-r2 \
                             -e R2_ACCESS_KEY_ID=fake \
                             -e R2_SECRET_ACCESS_KEY=fake \
-                            -e R2_BUCKET_NAME=fake-bucket \
+                            -e R2_BUCKET_NAME=contract-intelligence \
                             -e USE_DYNAMODB=false \
                             -e USE_LAMBDA=false \
                             ${APP_NAME}-test \
