@@ -12,3 +12,4 @@ All notable changes to this project will be documented in this file.
   - `healthcheck.sh` — API health check with response time monitoring (configurable URL and timeout)
   - `ecr-deploy.sh` — Full Lambda deployment pipeline: ECR login → Docker build → push → Lambda update with status polling
   - `db-backup.sh` — Timestamped compressed PostgreSQL backup with automatic retention cleanup
+- **Makefile** with 16 targets for development, testing, database, deployment, and cleanup shortcuts (2026-03-19)

@@ -97,6 +97,7 @@ Query → Pinecone Similarity Search (k=5, score≥0.7)
 
 ```
 contract-intel/
+├── Makefile                 # Dev/test/deploy shortcuts (make help)
 ├── Jenkinsfile              # CI pipeline (lint + test)
 ├── scripts/
 │   ├── healthcheck.sh       # API health check (Jenkins smoke test / monitoring)
@@ -210,6 +211,29 @@ docker compose exec api python -m scripts.create_dynamodb_table
 ### 4. Open the app
 
 Navigate to [http://localhost:5173](http://localhost:5173) and upload a PDF contract.
+
+---
+
+## Quick Commands
+
+A [`Makefile`](Makefile) provides shortcuts for common tasks. Run `make help` to see all available targets.
+
+| Command | What it does |
+|---------|-------------|
+| `make up` | Build and start all services in detached mode |
+| `make down` | Stop services and remove volumes |
+| `make logs` | Follow API container logs |
+| `make shell` | Open a bash shell in the API container |
+| `make test` | Run full pytest suite (verbose) |
+| `make test-fast` | Run tests with short output |
+| `make lint` | Run Ruff linter |
+| `make lint-fix` | Run Ruff with auto-fix |
+| `make migrate` | Run pending Alembic migrations |
+| `make migrate-create msg="description"` | Generate a new migration |
+| `make backup` | Compressed PostgreSQL backup |
+| `make deploy-lambda` | Build, push to ECR, update Lambda |
+| `make healthcheck` | Check if the API is alive |
+| `make clean` | Remove dangling Docker resources |
 
 ---
 
@@ -413,4 +437,4 @@ Tests use an in-memory SQLite database and mock all external services (OpenAI, P
 
 ## Keywords
 
-`Shell Scripts` · `Jenkins` · `CI/CD` · `Ruff` · `LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `AWS Lambda` · `AWS DynamoDB` · `AWS ECR` · `Serverless` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`
+`Makefile` · `Shell Scripts` · `Jenkins` · `CI/CD` · `Ruff` · `LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `AWS Lambda` · `AWS DynamoDB` · `AWS ECR` · `Serverless` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`
