@@ -128,9 +128,9 @@ pipeline {
         stage('Smoke Test') {
             when { expression { return true } }
             steps {
-                sleep 90
+                sleep 180
                 sh 'chmod +x ./scripts/healthcheck.sh'
-                sh 'API_URL=https://contract-intelligence-platform.onrender.com ./scripts/healthcheck.sh'
+                sh 'TIMEOUT=30 API_URL=https://contract-intelligence-platform.onrender.com ./scripts/healthcheck.sh'
             }
         }
     }
