@@ -87,6 +87,7 @@ Query → Pinecone Similarity Search (k=5, score≥0.7)
 | **File Storage** | **Cloudflare R2** (S3-compatible), presigned URLs via boto3 |
 | **Frontend** | **React** 18, **TypeScript**, Vite, Tailwind CSS, shadcn/ui |
 | **State** | TanStack Query (server), Zustand (client) |
+| **Reverse Proxy** | **Nginx** — rate limiting, security headers, gzip, WebSocket support |
 | **Containerization** | **Docker**, Docker Compose |
 | **CI/CD** | **Jenkins** declarative pipeline, **Ruff** linter |
 | **Deployment** | **Vercel** (frontend), **Render** (backend), **Cloudflare R2** (storage) |
@@ -99,6 +100,9 @@ Query → Pinecone Similarity Search (k=5, score≥0.7)
 contract-intel/
 ├── Makefile                 # Dev/test/deploy shortcuts (make help)
 ├── Jenkinsfile              # CI pipeline (lint + test)
+├── nginx/
+│   ├── nginx.conf           # Reverse proxy config (rate limiting, security headers)
+│   └── Dockerfile           # nginx:alpine image
 ├── scripts/
 │   ├── healthcheck.sh       # API health check (Jenkins smoke test / monitoring)
 │   ├── ecr-deploy.sh        # ECR login → Docker build → push → Lambda update
@@ -346,6 +350,32 @@ DATABASE_URL=postgresql://user:pass@host:5432/dbname ./scripts/db-backup.sh
 
 ---
 
+## Reverse Proxy & Security
+
+An **Nginx** reverse proxy ([`nginx/`](nginx/)) sits in front of both the API and frontend in Docker Compose, available on **port 80**.
+
+| Feature | Details |
+|---------|---------|
+| **Rate limiting** | Chat endpoint (`/api/v1/contracts/{id}/chat`) limited to **5 requests/minute per IP** with burst of 2 — returns 429 when exceeded |
+| **Security headers** | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection`, `Referrer-Policy`, `Permissions-Policy`, `Content-Security-Policy` |
+| **Gzip compression** | Enabled for JSON, JS, CSS, XML, plain text |
+| **Upload limit** | `client_max_body_size 50M` for PDF uploads |
+| **WebSocket** | Vite HMR supported via `Upgrade` / `Connection` headers |
+| **Proxy timeouts** | Connect 60s, send/read 120s (for long-running LLM calls) |
+
+### Network Isolation
+
+Docker Compose uses two bridge networks to separate concerns:
+
+| Network | Services |
+|---------|----------|
+| `frontend-net` | nginx, frontend, api |
+| `backend-net` | api, db, redis, dynamodb-local, celery-worker |
+
+The API service bridges both networks. Database and cache services are not reachable from the frontend or nginx containers.
+
+---
+
 ## Key Engineering Decisions
 
 - **LangChain LCEL** over raw OpenAI SDK calls — composable, testable, swap-friendly
@@ -437,4 +467,4 @@ Tests use an in-memory SQLite database and mock all external services (OpenAI, P
 
 ## Keywords
 
-`Makefile` · `Shell Scripts` · `Jenkins` · `CI/CD` · `Ruff` · `LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `AWS Lambda` · `AWS DynamoDB` · `AWS ECR` · `Serverless` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`
+`Nginx` · `Rate Limiting` · `Makefile` · `Shell Scripts` · `Jenkins` · `CI/CD` · `Ruff` · `LangChain` · `RAG` · `Retrieval-Augmented Generation` · `Vector Database` · `Pinecone` · `LLM Engineering` · `NLP` · `Generative AI` · `Prompt Engineering` · `OpenAI` · `gpt-4o-mini` · `Embeddings` · `Semantic Search` · `Python` · `FastAPI` · `React` · `TypeScript` · `PostgreSQL` · `SQL` · `AWS Lambda` · `AWS DynamoDB` · `AWS ECR` · `Serverless` · `Docker` · `Cloud Deployment` · `Vercel` · `Render` · `Cloudflare R2`

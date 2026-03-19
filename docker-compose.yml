@@ -1,4 +1,17 @@
 services:
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+      - frontend
+    restart: unless-stopped
+    networks:
+      - frontend-net
+
   db:
     image: postgres:16-alpine
     environment:
@@ -14,6 +27,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - backend-net
 
   redis:
     image: redis:7-alpine
@@ -26,12 +41,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - backend-net
 
   dynamodb-local:
     image: amazon/dynamodb-local:latest
     ports:
       - "8001:8000"
     command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    networks:
+      - backend-net
 
   api:
     build:
@@ -60,6 +79,9 @@ services:
       dynamodb-local:
         condition: service_started
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - frontend-net
+      - backend-net
 
   celery-worker:
     build:
@@ -84,6 +106,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - backend-net
 
   frontend:
     build:
@@ -98,7 +122,15 @@ services:
       - VITE_API_URL=http://localhost:8000
     depends_on:
       - api
+    networks:
+      - frontend-net
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    driver: bridge

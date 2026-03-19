@@ -13,3 +13,5 @@ All notable changes to this project will be documented in this file.
   - `ecr-deploy.sh` — Full Lambda deployment pipeline: ECR login → Docker build → push → Lambda update with status polling
   - `db-backup.sh` — Timestamped compressed PostgreSQL backup with automatic retention cleanup
 - **Makefile** with 16 targets for development, testing, database, deployment, and cleanup shortcuts (2026-03-19)
+- **Nginx reverse proxy** (`nginx/`) with rate limiting on chat endpoint (5r/m per IP), security headers (CSP, X-Frame-Options, etc.), gzip compression, WebSocket support for Vite HMR, and 50M upload limit (2026-03-19)
+- Docker Compose network isolation: `frontend-net` (nginx, frontend, api) and `backend-net` (api, db, redis, dynamodb-local, celery-worker)
