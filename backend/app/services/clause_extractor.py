@@ -80,7 +80,8 @@ Contract text (pages {page_range}):
 
 SUMMARY_TEMPLATE = """\
 You are a contract analysis expert. Write a 3-4 sentence plain-English summary of this contract.
-Include: the parties involved, the purpose/nature of the agreement, key obligations, and the duration or termination conditions if present.
+Include: the parties involved, the purpose/nature of the agreement, key obligations, \
+and the duration or termination conditions if present.
 
 {format_instructions}
 

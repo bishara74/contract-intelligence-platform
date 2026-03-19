@@ -43,7 +43,10 @@ async def get_upload_url(
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=409,
-            detail="A contract with this filename already exists. Please rename the file or delete the existing contract first.",
+            detail=(
+                "A contract with this filename already exists. "
+                "Please rename the file or delete the existing contract first."
+            ),
         )
 
     contract_id = uuid.uuid4()

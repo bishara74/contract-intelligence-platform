@@ -1,7 +1,6 @@
 """Cloudflare R2 storage service (S3-compatible) via boto3."""
 
 import logging
-from typing import Optional
 
 import boto3
 from botocore.config import Config

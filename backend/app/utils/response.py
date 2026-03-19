@@ -3,8 +3,6 @@ from typing import Any
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
-from app.schemas.common import ErrorDetail, ErrorResponse, SuccessResponse
-
 
 def success(data: Any, status_code: int = 200) -> JSONResponse:
     """Return a standardized success response."""

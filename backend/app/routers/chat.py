@@ -14,7 +14,7 @@ from app.dependencies.auth import get_current_user
 from app.models.chat_message import ChatMessage
 from app.models.contract import Contract
 from app.models.user import User
-from app.schemas.chat import ChatRequest, ChatMessageResponse, ChatResponse, SourceChunk
+from app.schemas.chat import ChatMessageResponse, ChatRequest, ChatResponse, SourceChunk
 from app.services.rag import ask
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,8 @@ async def chat(
     contract = await _get_ready_contract(contract_id, current_user, db)
 
     if settings.use_dynamodb:
-        from app.services.dynamodb import save_chat_message, get_chat_history as dynamo_get_history
+        from app.services.dynamodb import get_chat_history as dynamo_get_history
+        from app.services.dynamodb import save_chat_message
 
         # Save user message to DynamoDB
         save_chat_message(

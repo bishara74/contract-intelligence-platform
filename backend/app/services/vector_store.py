@@ -1,7 +1,6 @@
 """Pinecone vector store service using LangChain OpenAIEmbeddings."""
 
 import logging
-from typing import Optional
 
 from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore

@@ -14,7 +14,9 @@ from app.services.vector_store import get_vector_store
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are a contract analysis expert. Answer the user's question based ONLY on the provided contract context. Follow these rules:
+SYSTEM_PROMPT = """\
+You are a contract analysis expert. \
+Answer the user's question based ONLY on the provided contract context. Follow these rules:
 1. If the answer is in the context, provide a clear, precise answer and cite the page number(s).
 2. If the answer is NOT in the context, say "I couldn't find information about that in this contract."
 3. Never make up information that isn't in the context.

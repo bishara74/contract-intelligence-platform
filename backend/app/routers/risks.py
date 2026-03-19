@@ -14,8 +14,8 @@ from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.clause import Clause
 from app.models.contract import Contract
-from app.models.user import User
 from app.models.risk import Risk
+from app.models.user import User
 from app.schemas.risk import RiskResponse
 from app.services.risk_analyzer import SEVERITY_LEVELS
 
