@@ -1,57 +1,37 @@
-import { Bot, User } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { ChatMessage } from "@/types";
+import type { ChatMessage, SourceChunk } from "@/types";
 import SourceCitation from "./SourceCitation";
 
-interface MessageBubbleProps {
-  message: ChatMessage;
+function groupByPage(chunks: SourceChunk[]): [number, SourceChunk[]][] {
+  const map = new Map<number, SourceChunk[]>();
+  for (const c of chunks) map.set(c.page, [...(map.get(c.page) ?? []), c]);
+  return [...map.entries()].sort((a, b) => a[0] - b[0]);
 }
 
-export default function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.role === "user";
-
+export function UserMessage({ content }: { content: string }) {
   return (
-    <div className={cn("flex gap-3", isUser ? "flex-row-reverse" : "flex-row")}>
-      {/* Avatar */}
-      <div
-        className={cn(
-          "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-          isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-muted-foreground border"
-        )}
-      >
-        {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-      </div>
+    <div className="flex justify-end">
+      <p className="max-w-[80%] whitespace-pre-line rounded-lg rounded-br-sm bg-ink px-4 py-2.5 text-[15px] leading-relaxed text-white">
+        {content}
+      </p>
+    </div>
+  );
+}
 
-      {/* Bubble + sources */}
-      <div className={cn("flex max-w-[75%] flex-col gap-1.5", isUser ? "items-end" : "items-start")}>
-        <div
-          className={cn(
-            "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
-            isUser
-              ? "rounded-tr-sm bg-primary text-primary-foreground"
-              : "rounded-tl-sm bg-muted text-foreground"
-          )}
-        >
-          {/* Render newlines as line breaks */}
-          {message.content.split("\n").map((line, i) => (
-            <span key={i}>
-              {line}
-              {i < message.content.split("\n").length - 1 && <br />}
-            </span>
+export default function MessageBubble({ message }: { message: ChatMessage }) {
+  if (message.role === "user") return <UserMessage content={message.content} />;
+
+  const pages = groupByPage(message.source_chunks ?? []);
+  return (
+    <div className="sheet max-w-[92%] rounded-lg rounded-bl-sm px-5 py-4">
+      <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink">{message.content}</p>
+      {pages.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t pt-3">
+          <span className="mr-1 text-xs text-muted-foreground">Sources</span>
+          {pages.map(([page, chunks]) => (
+            <SourceCitation key={page} page={page} chunks={chunks} />
           ))}
         </div>
-
-        {/* Source citations (assistant only) */}
-        {!isUser && message.source_chunks && message.source_chunks.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 px-1">
-            {message.source_chunks.map((source, i) => (
-              <SourceCitation key={i} source={source} index={i} />
-            ))}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

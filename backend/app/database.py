@@ -19,7 +19,10 @@ AsyncSessionLocal = async_sessionmaker(
 
 def _get_sync_database_url() -> str:
     """Convert the async database URL to a sync one for Celery workers."""
-    return settings.database_url.replace("postgresql+asyncpg://", "postgresql://")
+    # asyncpg takes ?ssl=require (e.g. Neon); psycopg2 expects ?sslmode=require
+    return settings.database_url.replace("postgresql+asyncpg://", "postgresql://").replace(
+        "ssl=require", "sslmode=require"
+    )
 
 
 sync_engine = create_engine(_get_sync_database_url(), pool_pre_ping=True)

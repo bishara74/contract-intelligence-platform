@@ -4,7 +4,7 @@
 
 A full-stack demo application that lets users upload PDF contracts, ask natural language questions via **Retrieval-Augmented Generation (RAG)**, automatically extract key clauses, and flag high-risk provisions using **LLM Engineering** and **Generative AI**.
 
-**Live Demo:** _[Deploy link placeholder]_
+**Live Demo:** [contract-intelligence-platform-3zjo.vercel.app](https://contract-intelligence-platform-3zjo.vercel.app) (open the sample NDA, no account needed)
 
 ---
 
@@ -466,6 +466,8 @@ Tests use an in-memory SQLite database and mock all external services (OpenAI, P
 ## Screenshots
 
 ### Chat — RAG Q&A with Source Citations
+![Landing page](docs/screenshots/landing.png)
+
 ![Chat interface with source citations](docs/screenshots/chat.png)
 
 ### Clause Extraction — Grouped by Type

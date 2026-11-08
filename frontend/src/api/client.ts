@@ -9,6 +9,14 @@ import type {
   UploadUrlRequest,
   UploadUrlResponse,
 } from "@/types";
+import {
+  askDemo,
+  demoClauses,
+  demoContract,
+  demoRisks,
+  getDemoHistory,
+  isDemoId,
+} from "@/demo/sampleContract";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:8000",
@@ -68,6 +76,7 @@ export async function listContracts(): Promise<Contract[]> {
 }
 
 export async function getContract(contractId: string): Promise<Contract> {
+  if (isDemoId(contractId)) return demoContract;
   const res = await api.get<Contract>(`/api/v1/contracts/${contractId}`);
   return res.data;
 }
@@ -79,11 +88,13 @@ export async function deleteContract(contractId: string): Promise<void> {
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 
 export async function sendChatMessage(contractId: string, req: ChatRequest): Promise<ChatResponse> {
+  if (isDemoId(contractId)) return askDemo(req.question);
   const res = await api.post<ChatResponse>(`/api/v1/contracts/${contractId}/chat`, req);
   return res.data;
 }
 
 export async function getChatHistory(contractId: string): Promise<ChatHistoryResponse> {
+  if (isDemoId(contractId)) return { messages: getDemoHistory() };
   const res = await api.get<ChatHistoryResponse>(`/api/v1/contracts/${contractId}/chat/history`);
   return res.data;
 }
@@ -91,11 +102,13 @@ export async function getChatHistory(contractId: string): Promise<ChatHistoryRes
 // ─── Clauses ──────────────────────────────────────────────────────────────────
 
 export async function extractClauses(contractId: string): Promise<{ status: string }> {
+  if (isDemoId(contractId)) return { status: "done" };
   const res = await api.post<{ status: string }>(`/api/v1/contracts/${contractId}/extract-clauses`);
   return res.data;
 }
 
 export async function getClauses(contractId: string): Promise<ClausesGroupedResponse> {
+  if (isDemoId(contractId)) return demoClauses;
   const res = await api.get<ClausesGroupedResponse>(`/api/v1/contracts/${contractId}/clauses`);
   return res.data;
 }
@@ -103,11 +116,13 @@ export async function getClauses(contractId: string): Promise<ClausesGroupedResp
 // ─── Risks ────────────────────────────────────────────────────────────────────
 
 export async function analyzeRisks(contractId: string): Promise<{ status: string }> {
+  if (isDemoId(contractId)) return { status: "done" };
   const res = await api.post<{ status: string }>(`/api/v1/contracts/${contractId}/analyze-risks`);
   return res.data;
 }
 
 export async function getRisks(contractId: string): Promise<RisksResponse> {
+  if (isDemoId(contractId)) return demoRisks;
   const res = await api.get<RisksResponse>(`/api/v1/contracts/${contractId}/risks`);
   return res.data;
 }
