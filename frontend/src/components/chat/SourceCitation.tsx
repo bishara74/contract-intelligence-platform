@@ -1,34 +1,32 @@
-import { FileText } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { SourceChunk } from "@/types";
 
-interface SourceCitationProps {
-  source: SourceChunk;
-  index: number;
-}
-
-export default function SourceCitation({ source, index }: SourceCitationProps) {
+/** One chip per page; the popover shows every retrieved passage from that page. */
+export default function SourceCitation({ page, chunks }: { page: number; chunks: SourceChunk[] }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer">
-          <FileText className="h-3 w-3" />
-          p.{source.page}
+        <button
+          className="rounded-sm border bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground hover:border-ink/40 hover:text-ink data-[state=open]:border-ink data-[state=open]:text-ink"
+          aria-label={`Show source passages from page ${page}`}
+        >
+          p. {page}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-80" side="top" align="start">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Source {index + 1} · Page {source.page}
-            </span>
-            {source.score > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {(source.score * 100).toFixed(0)}% match
-              </span>
-            )}
-          </div>
-          <p className="text-sm leading-relaxed text-foreground line-clamp-6">{source.text}</p>
+      <PopoverContent className="w-[22rem] max-w-[90vw] p-0" side="top" align="start">
+        <p className="border-b px-4 py-2.5 text-xs font-bold text-ink">
+          Page {page}
+          {chunks.length > 1 && <span className="font-semibold text-muted-foreground">, {chunks.length} passages</span>}
+        </p>
+        <div className="max-h-72 space-y-3 overflow-y-auto px-4 py-3">
+          {chunks.map((c, i) => (
+            <div key={i} className="space-y-1">
+              <p className="font-serif text-sm leading-relaxed text-ink">{c.text}</p>
+              {c.score > 0 && (
+                <p className="text-xs text-muted-foreground">{Math.round(c.score * 100)}% match</p>
+              )}
+            </div>
+          ))}
         </div>
       </PopoverContent>
     </Popover>

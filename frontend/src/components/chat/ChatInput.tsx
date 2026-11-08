@@ -1,7 +1,5 @@
-import { Send } from "lucide-react";
-import { useRef, KeyboardEvent } from "react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { ArrowUp } from "lucide-react";
+import { KeyboardEvent, useEffect, useRef } from "react";
 
 interface ChatInputProps {
   value: string;
@@ -16,9 +14,17 @@ export default function ChatInput({
   onChange,
   onSubmit,
   disabled,
-  placeholder = "Ask anything about this contract…",
+  placeholder = "Ask a question about this contract",
 }: ChatInputProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  // Grow with content up to ~6 lines
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [value]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -28,8 +34,18 @@ export default function ChatInput({
   };
 
   return (
-    <div className="flex items-end gap-2 border-t bg-background p-3">
+    <form
+      className="sheet flex items-end gap-2 rounded-lg p-2 focus-within:border-ink/50"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (value.trim() && !disabled) onSubmit();
+      }}
+    >
+      <label htmlFor="chat-input" className="sr-only">
+        Question
+      </label>
       <textarea
+        id="chat-input"
         ref={ref}
         rows={1}
         value={value}
@@ -37,25 +53,16 @@ export default function ChatInput({
         onKeyDown={handleKeyDown}
         disabled={disabled}
         placeholder={placeholder}
-        className={cn(
-          "flex-1 resize-none rounded-lg border bg-muted/50 px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 max-h-40 overflow-y-auto",
-          "min-h-[40px]"
-        )}
-        style={{ height: "auto" }}
-        onInput={(e) => {
-          const el = e.currentTarget;
-          el.style.height = "auto";
-          el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-        }}
+        className="max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-3 py-2 text-[15px] leading-relaxed text-ink placeholder:text-muted-foreground focus:outline-none focus-visible:outline-none disabled:opacity-60"
       />
-      <Button
-        size="icon"
-        onClick={onSubmit}
+      <button
+        type="submit"
         disabled={disabled || !value.trim()}
-        className="flex-shrink-0 h-10 w-10"
+        aria-label="Send question"
+        className="flex h-10 w-10 flex-none items-center justify-center rounded-md bg-ink text-white transition-opacity hover:bg-ink/90 disabled:opacity-30"
       >
-        <Send className="h-4 w-4" />
-      </Button>
-    </div>
+        <ArrowUp className="h-5 w-5" />
+      </button>
+    </form>
   );
 }

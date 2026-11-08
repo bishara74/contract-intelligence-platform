@@ -1,9 +1,13 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: ["class"],
-  content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
+    content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
+    container: { center: true, padding: "1.25rem", screens: { "2xl": "1240px" } },
     extend: {
+      fontFamily: {
+        sans: ['"Schibsted Grotesk Variable"', "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: ['"Source Serif 4 Variable"', "Georgia", "serif"],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -41,6 +45,17 @@ export default {
           foreground: "hsl(var(--destructive-foreground))",
         },
         border: "hsl(var(--border))",
+        ink: "#172033",
+        paper: "#FFFFFF",
+        desk: "#E9ECF0",
+        highlight: "#FFE36E",
+        redline: "#C7362F",
+        severity: {
+          critical: "#C7362F",
+          high: "#D2601A",
+          medium: "#A87A00",
+          low: "#4F6D8F",
+        },
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
       },

@@ -34,33 +34,33 @@ export default function DropZone({ onFileSelected, disabled, error }: DropZonePr
       <div
         {...getRootProps()}
         className={cn(
-          "relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors cursor-pointer overflow-hidden",
-          isDragActive && "border-primary bg-primary/5",
+          "relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-md border-2 border-dashed px-6 py-10 text-center transition-colors",
+          isDragActive && "border-ink bg-highlight/30",
           isDragReject && "border-destructive bg-destructive/5",
-          !isDragActive && !isDragReject && "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50",
+          !isDragActive && !isDragReject && "border-input hover:border-ink/50 hover:bg-muted/50",
           disabled && "opacity-50 cursor-not-allowed",
-          selectedFile && !isDragActive && "border-green-500/50 bg-green-50/50 dark:bg-green-950/20"
+          selectedFile && !isDragActive && "border-solid border-ink/40 bg-muted/40"
         )}
       >
         <input {...getInputProps()} />
 
         {selectedFile ? (
           <div className="max-w-full w-full overflow-hidden flex flex-col items-center">
-            <FileText className="h-10 w-10 text-green-600 mb-3" />
-            <p className="font-medium text-sm truncate max-w-full px-2" title={selectedFile.name}>
+            <FileText className="mb-3 h-9 w-9 text-ink" aria-hidden />
+            <p className="max-w-full truncate px-2 text-sm font-bold text-ink" title={selectedFile.name}>
               {selectedFile.name}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · Click or drag to replace
+              {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB. Click or drop another file to replace it.
             </p>
           </div>
         ) : (
           <>
-            <Upload className="h-10 w-10 text-muted-foreground mb-3" />
-            <p className="font-medium text-sm">
-              {isDragActive ? "Drop your PDF here" : "Drag & drop your PDF contract"}
+            <Upload className="mb-3 h-9 w-9 text-ink" aria-hidden />
+            <p className="text-sm font-bold text-ink">
+              {isDragActive ? "Drop the PDF to select it" : "Drop a PDF here or click to choose one"}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">or click to browse · PDF only · max 50 MB</p>
+            <p className="mt-1 text-xs text-muted-foreground">PDF only, up to 50 MB</p>
           </>
         )}
       </div>

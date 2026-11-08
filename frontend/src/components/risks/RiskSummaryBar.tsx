@@ -1,46 +1,42 @@
-import type { Severity } from "@/types";
-
-const SEVERITY_CONFIG: Record<Severity, { label: string; bg: string; text: string; border: string }> = {
-  critical: { label: "Critical", bg: "bg-red-600", text: "text-white", border: "border-red-600" },
-  high:     { label: "High",     bg: "bg-orange-500", text: "text-white", border: "border-orange-500" },
-  medium:   { label: "Medium",   bg: "bg-yellow-500", text: "text-white", border: "border-yellow-500" },
-  low:      { label: "Low",      bg: "bg-blue-500",   text: "text-white", border: "border-blue-500" },
-};
-
-const ORDER: Severity[] = ["critical", "high", "medium", "low"];
+import { cn } from "@/lib/utils";
+import { SEVERITY, SEVERITY_ORDER } from "./severity";
 
 interface RiskSummaryBarProps {
   severityCounts: Record<string, number>;
   total: number;
+  compact?: boolean;
 }
 
-export default function RiskSummaryBar({ severityCounts, total }: RiskSummaryBarProps) {
+/** Proportional bar of risks by severity, with a count legend. */
+export default function RiskSummaryBar({ severityCounts, total, compact }: RiskSummaryBarProps) {
+  const present = SEVERITY_ORDER.filter((s) => (severityCounts[s] ?? 0) > 0);
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">Risk Summary</p>
-        <span className="text-sm text-muted-foreground">{total} total</span>
+    <div className={cn("space-y-3", !compact && "sheet rounded-md p-5")}>
+      <p className={cn("text-muted-foreground", compact ? "text-sm" : "text-[15px]")}>
+        <span className={cn("font-bold tabular-nums text-ink", compact ? "text-2xl" : "text-3xl")}>{total}</span>{" "}
+        {total === 1 ? "risk" : "risks"} found
+      </p>
+      <div
+        className="flex h-2.5 gap-0.5 overflow-hidden rounded-full"
+        role="img"
+        aria-label={present.map((s) => `${severityCounts[s]} ${s}`).join(", ")}
+      >
+        {present.map((s) => (
+          <div key={s} className={SEVERITY[s].bar} style={{ flex: severityCounts[s] }} />
+        ))}
       </div>
-      <div className="flex gap-2 flex-wrap">
-        {ORDER.map((sev) => {
-          const count = severityCounts[sev] ?? 0;
-          const cfg = SEVERITY_CONFIG[sev];
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        {SEVERITY_ORDER.map((s) => {
+          const n = severityCounts[s] ?? 0;
           return (
-            <div
-              key={sev}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 ${
-                count > 0 ? cfg.border : "border-muted"
-              }`}
-            >
-              <div className={`h-2.5 w-2.5 rounded-full ${count > 0 ? cfg.bg : "bg-muted"}`} />
-              <span className={`text-sm font-medium ${count > 0 ? "text-foreground" : "text-muted-foreground"}`}>
-                {count}
-              </span>
-              <span className="text-xs text-muted-foreground">{cfg.label}</span>
-            </div>
+            <li key={s} className={cn("flex items-center gap-1.5", n === 0 && "opacity-45")}>
+              <span className={cn("h-2 w-2 rounded-full", SEVERITY[s].bar)} aria-hidden />
+              <span className="font-semibold tabular-nums text-ink">{n}</span>
+              <span className="text-muted-foreground">{SEVERITY[s].label.toLowerCase()}</span>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
   );
 }

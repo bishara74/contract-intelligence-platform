@@ -21,7 +21,7 @@ export default function ProcessingStatus({ status, filename, errorMessage }: Pro
       <div className="flex flex-col items-center gap-3 py-4 text-center">
         <XCircle className="h-10 w-10 text-destructive" />
         <div>
-          <p className="font-medium">Processing failed</p>
+          <p className="font-bold text-ink">The contract couldn’t be read</p>
           <p className="text-sm text-muted-foreground mt-1">{errorMessage ?? "An unexpected error occurred."}</p>
         </div>
       </div>
@@ -34,14 +34,14 @@ export default function ProcessingStatus({ status, filename, errorMessage }: Pro
     <div className="space-y-4 py-2 w-full overflow-hidden">
       <div className="flex items-center gap-3">
         {status === "ready" ? (
-          <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+          <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-ink" />
         ) : (
-          <Loader2 className="h-5 w-5 text-primary animate-spin flex-shrink-0" />
+          <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-ink" />
         )}
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium truncate" title={filename}>{filename}</p>
           <p className="text-xs text-muted-foreground">
-            {status === "ready" ? "Processing complete" : "Processing your contract\u2026"}
+            {status === "ready" ? "Ready to open" : "Reading and indexing the contract\u2026"}
           </p>
         </div>
       </div>
